@@ -10,14 +10,16 @@ find_package(nlohmann_json CONFIG REQUIRED)
 set(SOURCES
   src/main.cpp
   src/GraphicsApp.cpp
+   src/Camera.cpp
 )
 
 set(HEADERS
   src/Pch.h
   src/GraphicsApp.h
+   src/Camera.h
 )
 
-add_executable(DirectXStart3D WIN32 ${SOURCES})
+add_executable(DirectXStart3D WIN32 ${SOURCES} "src/Camera.h" "src/Camera.cpp")
 set_source_files_properties(${HEADERS} PROPERTIES HEADER_FILE_ONLY ON)
 
 source_group(TREE "${CMAKE_SOURCE_DIR}/src" FILES ${SOURCES} ${HEADERS})

@@ -13,6 +13,8 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 
+class Camera;
+
 
 class GraphicsApp {
 public:
@@ -50,6 +52,12 @@ private:
     UINT m_canvasWidth = 0;
     UINT m_canvasHeight = 0;
 
+    std::unique_ptr<Camera> m_camera;
+    DirectX::XMFLOAT4X4 m_projection;
+    float m_fieldOfView = DirectX::XM_PI / 4.0f;
+    float m_nearPlane = 0.1f;
+    float m_farPlane = 1000.0f;
+    float m_aspectRatio = 1.0f;
 
 };
 

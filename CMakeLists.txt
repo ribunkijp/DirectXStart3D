@@ -12,6 +12,7 @@ set(SOURCES
   src/GraphicsApp.cpp
   src/Camera.cpp
   src/GraphicsUtils.cpp
+  src/BufferUtils.cpp
 )
 
 set(HEADERS
@@ -19,6 +20,8 @@ set(HEADERS
   src/GraphicsApp.h
   src/Camera.h
   src/GraphicsUtils.h
+  src/CommonTypes.h
+  src/BufferUtils.h
 )
 
 add_executable(DirectXStart3D WIN32 ${SOURCES})
@@ -57,6 +60,7 @@ target_link_libraries(DirectXStart3D PRIVATE
   d3d11
   dxgi
   d3dcompiler
+  Shcore.lib
 )
 
 target_include_directories(DirectXStart3D SYSTEM PRIVATE

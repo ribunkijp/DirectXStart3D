@@ -35,8 +35,9 @@ private:
     Microsoft::WRL::ComPtr<ID3D11VertexShader> m_vertexShader;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pixelShader;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> m_samplerState;
-    Microsoft::WRL::ComPtr<ID3D11SamplerState> m_samplerStateTile;// tile
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthStateDefault;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthStencilStateTransparent;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthStateDisabled;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_depthStencilView;
     Microsoft::WRL::ComPtr<ID3D11BlendState> m_blendStateNormal;
     Microsoft::WRL::ComPtr<ID3D11BlendState> m_blendStateAdditive;
@@ -49,8 +50,21 @@ private:
     const float m_logicalHeight = 1044.0f;
     const float m_SCALE_FACTOR = 1.0f;
 
+    // 离屏纹理
     UINT m_canvasWidth = 0;
     UINT m_canvasHeight = 0;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_canvasTex;
+    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_canvasRTV;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_canvasSRV;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_canvasDSV;
+
+    // present
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> m_presentVS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader> m_presentPS;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_presentVB = nullptr;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_presentIB = nullptr;
+    // no cull
+    Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_rsNoCull;
 
     std::unique_ptr<Camera> m_camera;
     DirectX::XMFLOAT4X4 m_projection;

@@ -14,6 +14,8 @@
 #include <DirectXMath.h>
 
 class Camera;
+class Timer;
+class Player;
 
 
 class GraphicsApp {
@@ -22,8 +24,14 @@ public:
     ~GraphicsApp();
 
     bool Initialize(HWND hwnd);
+    void OnResize(UINT width, UINT height);
+    void Run();
 
-
+private:
+    void UpdateProjectionMatrix();
+    void Update(float deltaTime);
+    void Render();
+    void DrawFullscreenTexture(ID3D11ShaderResourceView* srv);
 
 private:
     Microsoft::WRL::ComPtr<ID3D11Device> m_device;
@@ -39,6 +47,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthStencilStateTransparent;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthStateDisabled;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_depthStencilView;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_depthStencilBuffer;
     Microsoft::WRL::ComPtr<ID3D11BlendState> m_blendStateNormal;
     Microsoft::WRL::ComPtr<ID3D11BlendState> m_blendStateAdditive;
     Microsoft::WRL::ComPtr<ID3D11BlendState> m_blendStateMultiply;
@@ -57,6 +66,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_canvasRTV;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_canvasSRV;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_canvasDSV;
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> m_canvasDepth;
 
     // present
     Microsoft::WRL::ComPtr<ID3D11VertexShader> m_presentVS;
@@ -72,6 +82,10 @@ private:
     float m_nearPlane = 0.1f;
     float m_farPlane = 1000.0f;
     float m_aspectRatio = 1.0f;
+
+    std::unique_ptr<Timer> m_timer = nullptr;
+
+    std::unique_ptr<Player> m_player = nullptr;
 
 };
 

@@ -13,6 +13,8 @@ set(SOURCES
   src/Camera.cpp
   src/GraphicsUtils.cpp
   src/BufferUtils.cpp
+  src/Timer.cpp
+  src/Player.cpp
 )
 
 set(HEADERS
@@ -22,6 +24,8 @@ set(HEADERS
   src/GraphicsUtils.h
   src/CommonTypes.h
   src/BufferUtils.h
+  src/Timer.h
+  src/Player.h
 )
 
 add_executable(DirectXStart3D WIN32 ${SOURCES})

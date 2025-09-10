@@ -14,6 +14,7 @@
 #include "GraphicsUtils.h"
 #include "CommonTypes.h"
 #include "BufferUtils.h"
+#include "Timer.h"
 
 GraphicsApp::GraphicsApp() {
     DirectX::XMStoreFloat4x4(
@@ -140,9 +141,9 @@ bool GraphicsApp::Initialize(HWND hwnd) {
     depthBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;    // 绑定为深度/模板目标（DSV）
     depthBufferDesc.CPUAccessFlags = 0;                      // CPU 不访问
     depthBufferDesc.MiscFlags = 0;
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilBuffer;// 深度/模板（Depth/Stencil）缓冲的 2D 纹理指针// 无其他附加标记
+    
     hr = m_device->CreateTexture2D(                    // 创建深度/模板纹理资源
-        &depthBufferDesc, nullptr, &depthStencilBuffer
+        &depthBufferDesc, nullptr, m_depthStencilBuffer.GetAddressOf()
     );
     if (FAILED(hr)) {
         MessageBoxW(m_hwnd, L"Failed to create depth stencil buffer.", L"Error", MB_OK);
@@ -154,7 +155,7 @@ bool GraphicsApp::Initialize(HWND hwnd) {
     dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;   // 非 MSAA 的 2D 视图（若 MSAA 用 TEXTURE2DMS）
     dsvDesc.Texture2D.MipSlice = 0;                          // 绑定 mip 级别 0
     hr = m_device->CreateDepthStencilView(             // 从纹理创建 DSV 视图
-        depthStencilBuffer.Get(), &dsvDesc, m_depthStencilView.GetAddressOf()
+        m_depthStencilBuffer.Get(), &dsvDesc, m_depthStencilView.GetAddressOf()
     );
     if (FAILED(hr)) {
         MessageBoxW(m_hwnd, L"Failed to create depth stencil view.", L"Error", MB_OK);
@@ -194,12 +195,12 @@ bool GraphicsApp::Initialize(HWND hwnd) {
 
     hr = m_device->CreateRenderTargetView(m_canvasTex.Get(), nullptr, m_canvasRTV.GetAddressOf());//从该纹理创建渲染目标视图（RTV）
     if (FAILED(hr)) {
-        MessageBoxW(hwnd, L"Failed to create m_canvasRTV.", L"Error", MB_OK);
+        MessageBoxW(m_hwnd, L"Failed to create m_canvasRTV.", L"Error", MB_OK);
         return false;
     }
     hr = m_device->CreateShaderResourceView(m_canvasTex.Get(), nullptr, m_canvasSRV.GetAddressOf());//从该纹理创建着色器资源视图（SRV）
     if (FAILED(hr)) {
-        MessageBoxW(hwnd, L"Failed to create m_canvasSRV.", L"Error", MB_OK);
+        MessageBoxW(m_hwnd, L"Failed to create m_canvasSRV.", L"Error", MB_OK);
         return false;
     }
 
@@ -216,9 +217,9 @@ bool GraphicsApp::Initialize(HWND hwnd) {
     depthBufferDesc_RTT.BindFlags = D3D11_BIND_DEPTH_STENCIL;
     depthBufferDesc_RTT.CPUAccessFlags = 0;
     depthBufferDesc_RTT.MiscFlags = 0;
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> depthStencilBuffer_RTT;
+    
     hr = m_device->CreateTexture2D(                    
-        &depthBufferDesc_RTT, nullptr, &depthStencilBuffer_RTT
+        &depthBufferDesc_RTT, nullptr, m_canvasDepth.GetAddressOf()
     );
     if (FAILED(hr)) {
         MessageBoxW(m_hwnd, L"Failed to create depth stencil buffer RTT.", L"Error", MB_OK);
@@ -230,7 +231,7 @@ bool GraphicsApp::Initialize(HWND hwnd) {
     dsvDesc_RTT.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;   // 非 MSAA 的 2D 视图（若 MSAA 用 TEXTURE2DMS）
     dsvDesc_RTT.Texture2D.MipSlice = 0;                          // 绑定 mip 级别 0
     hr = m_device->CreateDepthStencilView(             // 从纹理创建 DSV 视图
-        depthStencilBuffer_RTT.Get(), &dsvDesc_RTT, m_canvasDSV.GetAddressOf()
+        m_canvasDepth.Get(), &dsvDesc_RTT, m_canvasDSV.GetAddressOf()
     );
     if (FAILED(hr)) {
         MessageBoxW(m_hwnd, L"Failed to create depth stencil view RTT.", L"Error", MB_OK);
@@ -477,7 +478,263 @@ bool GraphicsApp::Initialize(HWND hwnd) {
     return true;
 }
 
+void GraphicsApp::OnResize(UINT width, UINT height) {
+    if (!m_swapChain || !m_device || !m_context || width == 0 || height == 0) {
+        return;
+    }
 
+    m_context->OMSetRenderTargets(0, nullptr, nullptr);
+    m_rtv.Reset();
+    m_depthStencilView.Reset();
+    m_depthStencilBuffer.Reset();
+    m_canvasRTV.Reset();
+    m_canvasSRV.Reset();
+    m_canvasDSV.Reset();
+    m_canvasTex.Reset();
+    m_canvasDepth.Reset();
+
+    HRESULT hr;
+
+    hr = m_swapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0);
+    if (FAILED(hr)) {
+        MessageBoxW(m_hwnd, L"Failed to resize swap chain buffers.", L"Error", MB_OK);
+        return;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> backBuffer;
+    hr = m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), &backBuffer);
+    if (FAILED(hr)) { return; }
+    hr = m_device->CreateRenderTargetView(backBuffer.Get(), nullptr, m_rtv.GetAddressOf());
+    if (FAILED(hr)) { return; }
+
+
+    m_canvasWidth = width;
+    m_canvasHeight = height;
+    UpdateProjectionMatrix();
+
+
+    D3D11_TEXTURE2D_DESC depthBufferDesc = {};               // 深度/模板纹理的描述结构体，零初始化
+    depthBufferDesc.Width = width; // 纹理宽度：与窗口客户区宽一致
+    depthBufferDesc.Height = height;// 纹理高度：与窗口客户区高一致
+    depthBufferDesc.MipLevels = 1;                           // 仅 1 个 mip 级别（深度贴图通常不需要多级）
+    depthBufferDesc.ArraySize = 1;                           // 非数组纹理
+    depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;  // 24 位深度 + 8 位模板（常用且够用）,可选替代：D32_FLOAT（高精度、无模板）、D16_UNORM（轻量）
+    depthBufferDesc.SampleDesc.Count = 1;                    // 采样数=1（无 MSAA；若颜色缓冲是 MSAA，这里必须匹配）
+    depthBufferDesc.SampleDesc.Quality = 0;                  // 采样质量=0（与 Count=1 搭配）
+    depthBufferDesc.Usage = D3D11_USAGE_DEFAULT;             // 默认用法：GPU 读写
+    depthBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;    // 绑定为深度/模板目标（DSV）
+    depthBufferDesc.CPUAccessFlags = 0;                      // CPU 不访问
+    depthBufferDesc.MiscFlags = 0;
+
+    hr = m_device->CreateTexture2D(                    // 创建深度/模板纹理资源
+        &depthBufferDesc, nullptr, m_depthStencilBuffer.GetAddressOf()
+    );
+    if (FAILED(hr)) {
+        MessageBoxW(m_hwnd, L"Failed to create depth stencil buffer.", L"Error", MB_OK);
+        return;
+    }
+
+    D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};             // DSV（深度/模板视图）描述
+    dsvDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;          // 视图格式需与资源兼容（或资源用 typeless、视图用 typed）
+    dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;   // 非 MSAA 的 2D 视图（若 MSAA 用 TEXTURE2DMS）
+    dsvDesc.Texture2D.MipSlice = 0;                          // 绑定 mip 级别 0
+    hr = m_device->CreateDepthStencilView(             // 从纹理创建 DSV 视图
+        m_depthStencilBuffer.Get(), &dsvDesc, m_depthStencilView.GetAddressOf()
+    );
+    if (FAILED(hr)) {
+        MessageBoxW(m_hwnd, L"Failed to create depth stencil view.", L"Error", MB_OK);
+        return;
+    }
+
+
+    D3D11_TEXTURE2D_DESC cdesc = {};
+    cdesc.Width = width;
+    cdesc.Height = height;
+    cdesc.MipLevels = 1;                            
+    cdesc.ArraySize = 1;                            
+    cdesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;      
+    cdesc.SampleDesc.Count = 1;                     
+    cdesc.Usage = D3D11_USAGE_DEFAULT;             
+    cdesc.BindFlags = D3D11_BIND_RENDER_TARGET 
+        | D3D11_BIND_SHADER_RESOURCE;
+
+    hr = m_device->CreateTexture2D(&cdesc, nullptr, m_canvasTex.GetAddressOf());
+    if (FAILED(hr)) {
+        MessageBoxW(m_hwnd, L"Failed to create canvas texture.", L"Error", MB_OK);
+        return;
+    }
+
+    hr = m_device->CreateRenderTargetView(m_canvasTex.Get(), nullptr, m_canvasRTV.GetAddressOf());//从该纹理创建渲染目标视图（RTV）
+    if (FAILED(hr)) {
+        MessageBoxW(m_hwnd, L"Failed to create m_canvasRTV.", L"Error", MB_OK);
+        return;
+    }
+    hr = m_device->CreateShaderResourceView(m_canvasTex.Get(), nullptr, m_canvasSRV.GetAddressOf());//从该纹理创建着色器资源视图（SRV）
+    if (FAILED(hr)) {
+        MessageBoxW(m_hwnd, L"Failed to create m_canvasSRV.", L"Error", MB_OK);
+        return;
+    }
+
+
+
+    D3D11_TEXTURE2D_DESC depthBufferDesc_RTT = {};
+    depthBufferDesc_RTT.Width = m_canvasWidth;
+    depthBufferDesc_RTT.Height = m_canvasHeight;
+    depthBufferDesc_RTT.MipLevels = 1;
+    depthBufferDesc_RTT.ArraySize = 1;
+    depthBufferDesc_RTT.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    depthBufferDesc_RTT.SampleDesc.Count = 1;
+    depthBufferDesc_RTT.SampleDesc.Quality = 0;
+    depthBufferDesc_RTT.Usage = D3D11_USAGE_DEFAULT;
+    depthBufferDesc_RTT.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    depthBufferDesc_RTT.CPUAccessFlags = 0;
+    depthBufferDesc_RTT.MiscFlags = 0;
+
+    hr = m_device->CreateTexture2D(
+        &depthBufferDesc_RTT, nullptr, m_canvasDepth.GetAddressOf()
+    );
+    if (FAILED(hr)) {
+        MessageBoxW(m_hwnd, L"Failed to create depth stencil buffer RTT.", L"Error", MB_OK);
+        return;
+    }
+
+    D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc_RTT = {};             
+    dsvDesc_RTT.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;          
+    dsvDesc_RTT.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;   
+    dsvDesc_RTT.Texture2D.MipSlice = 0;                          
+    hr = m_device->CreateDepthStencilView(            
+        m_canvasDepth.Get(), &dsvDesc_RTT, m_canvasDSV.GetAddressOf()
+    );
+    if (FAILED(hr)) {
+        MessageBoxW(m_hwnd, L"Failed to create depth stencil view RTT.", L"Error", MB_OK);
+        return;
+    }
+
+    D3D11_VIEWPORT vp = {};
+    vp.Width = static_cast<FLOAT>(width);
+    vp.Height = static_cast<FLOAT>(height);
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    m_context->RSSetViewports(1, &vp);
+}
+
+void GraphicsApp::UpdateProjectionMatrix() {
+    if (m_canvasHeight == 0) m_canvasHeight = 1;
+
+    m_aspectRatio = static_cast<float>(m_canvasWidth) / static_cast<float>(m_canvasHeight);
+
+    DirectX::XMMATRIX projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(
+        m_fieldOfView,
+        m_aspectRatio,
+        m_nearPlane,
+        m_farPlane
+    );
+
+    DirectX::XMStoreFloat4x4(&m_projection, projectionMatrix);
+}
+
+void GraphicsApp::Run()
+{
+    m_timer->Reset();
+    MSG msg = {};
+    while (true)
+    {
+        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+        {
+            if (msg.message == WM_QUIT)
+                break;
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        else
+        {
+            m_timer->Tick();
+            float deltaTime = m_timer->GetDeltaTime();
+
+            Update(deltaTime);
+            Render();
+        }
+    }
+}
+
+void GraphicsApp::Update(float deltaTime) {
+
+}
+
+void GraphicsApp::Render() {
+    if (!m_context) return;
+
+    D3D11_VIEWPORT canvasVP = {};
+    canvasVP.TopLeftX = 0.0f;
+    canvasVP.TopLeftY = 0.0f;
+    canvasVP.Width = static_cast<FLOAT>(m_canvasWidth);
+    canvasVP.Height = static_cast<FLOAT>(m_canvasHeight);
+    canvasVP.MinDepth = 0.0f;
+    canvasVP.MaxDepth = 1.0f;
+    m_context->RSSetViewports(1, &canvasVP);
+
+    const float canvasClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    m_context->ClearRenderTargetView(m_canvasRTV.Get(), canvasClearColor);
+    m_context->ClearDepthStencilView(m_canvasDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+    ID3D11RenderTargetView* rtCanvas[] = { m_canvasRTV.Get() };
+    m_context->OMSetRenderTargets(1, rtCanvas, m_canvasDSV.Get());
+
+    m_context->IASetInputLayout(m_inputLayout.Get());
+    m_context->VSSetShader(m_vertexShader.Get(), nullptr, 0);
+    m_context->PSSetShader(m_pixelShader.Get(), nullptr, 0);
+    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);//三角形
+    m_context->OMSetDepthStencilState(m_depthStencilStateTransparent.Get(), 0);
+    m_context->OMSetBlendState(m_blendStateNormal.Get(), nullptr, 0xffffffff);
+
+
+
+
+
+    RECT rect;
+    GetClientRect(m_hwnd, &rect);
+    D3D11_VIEWPORT finalVP = {};
+    finalVP.Width = static_cast<float>(rect.right - rect.left);
+    finalVP.Height = static_cast<float>(rect.bottom - rect.top);
+    finalVP.MaxDepth = 1.0f;
+
+    m_context->RSSetViewports(1, &finalVP);
+    ID3D11RenderTargetView* rtFinal[] = { m_rtv.Get() };
+    m_context->OMSetRenderTargets(1, rtFinal, m_depthStencilView.Get());
+
+    DrawFullscreenTexture(m_canvasSRV.Get());
+
+    m_swapChain->Present(1, 0);
+}
+
+void GraphicsApp::DrawFullscreenTexture(ID3D11ShaderResourceView* srv)
+{
+    if (!srv) return;
+    m_context->RSSetState(m_rsNoCull.Get());// 关闭背面剔除
+    m_context->IASetInputLayout(m_inputLayout.Get());
+    m_context->VSSetShader(m_presentVS.Get(), nullptr, 0);
+    m_context->PSSetShader(m_presentPS.Get(), nullptr, 0);
+    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    m_context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    m_context->OMSetDepthStencilState(m_depthStateDisabled.Get(), 0);
+
+    ID3D11ShaderResourceView* srvs[] = { srv };
+    m_context->PSSetShaderResources(0, 1, srvs);
+    ID3D11SamplerState* sams[] = { m_samplerState.Get() };
+    m_context->PSSetSamplers(0, 1, sams);
+
+    const UINT stride = sizeof(Vertex);
+    const UINT offset = 0;
+    ID3D11Buffer* vbs[] = { m_presentVB.Get() };
+    m_context->IASetVertexBuffers(0, 1, vbs, &stride, &offset);
+    m_context->IASetIndexBuffer(m_presentIB.Get(), DXGI_FORMAT_R32_UINT, 0);
+
+    m_context->DrawIndexed(6, 0, 0);
+
+    ID3D11ShaderResourceView* nullSRV[1] = { nullptr };
+    m_context->PSSetShaderResources(0, 1, nullSRV);
+}
 
 struct AdvancedVertex
 {

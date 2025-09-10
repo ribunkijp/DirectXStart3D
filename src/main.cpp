@@ -92,7 +92,7 @@ int WINAPI wWinMain(
     HWND hwnd = CreateWindowEx(
         0,
         CLASS_NAME,
-        L"バウンティ侍伝説",
+        L"3dGAME",
         C_WND_STYLE,
         winL,
         winT,

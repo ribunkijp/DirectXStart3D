@@ -32,6 +32,7 @@ private:
     void Update(float deltaTime);
     void Render();
     void DrawFullscreenTexture(ID3D11ShaderResourceView* srv);
+    void UpdateFrameConstantBuffer();
 
 private:
     Microsoft::WRL::ComPtr<ID3D11Device> m_device;
@@ -74,6 +75,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11PixelShader> m_presentPS;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_presentVB = nullptr;
     Microsoft::WRL::ComPtr<ID3D11Buffer> m_presentIB = nullptr;
+    
     // no cull
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_rsNoCull;
 
@@ -88,6 +90,7 @@ private:
 
     std::unique_ptr<Player> m_player = nullptr;
 
+    DirectX::XMFLOAT3 m_lightDirection = { -0.707f, -0.707f, -0.707f };
 };
 
 

@@ -73,12 +73,12 @@ float4 PSMain(PS_INPUT input) : SV_TARGET
     // 采样基础颜色
     float4 baseColor = albedoTexture.Sample(defaultSampler, input.texCoord);
 
-    // 世界空间法线与光照方向（按约定：lightDirWS 为光线前进方向，所以漫反射用 N·(-L)）
+    // 计算表面法线和光照方向的反方向之间的夹角
     float3 normalWS = normalize(input.worldNormal);
     float3 lightDirWSNorm = normalize(lightDirWS);
     float diffuseFactor = saturate(dot(normalWS, -lightDirWSNorm));
 
-    // 环境 + 漫反射（按颜色调制）
+    // 环境光 + 漫反射
     float3 lightingRGB = ambientColor.rgb + diffuseFactor * lightColor.rgb;
 
     // 最终颜色：纹理 × 顶点色 × 光照 × 对象tint
@@ -86,5 +86,5 @@ float4 PSMain(PS_INPUT input) : SV_TARGET
 
     //return finalColor;
     
-    return input.color;
+    return input.color * float4(lightingRGB, 1.0f) * tintColor;
 }

@@ -687,6 +687,8 @@ void GraphicsApp::Render() {
     m_context->ClearRenderTargetView(m_canvasRTV.Get(), canvasClearColor);
     m_context->ClearDepthStencilView(m_canvasDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 
+    UpdateFrameConstantBuffer();
+
     ID3D11RenderTargetView* rtCanvas[] = { m_canvasRTV.Get() };
     m_context->OMSetRenderTargets(1, rtCanvas, m_canvasDSV.Get());
 
@@ -695,7 +697,7 @@ void GraphicsApp::Render() {
     m_context->PSSetShader(m_pixelShader.Get(), nullptr, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);//三角形
     m_context->OMSetDepthStencilState(m_depthStateDefault.Get(), 0);
-    m_context->OMSetBlendState(m_blendStateNormal.Get(), nullptr, 0xffffffff);
+    m_context->OMSetBlendState(nullptr, nullptr, 0xffffffff);//不透明物体，关闭混合
 
     ID3D11SamplerState* sams0[] = { m_samplerState.Get() };
     m_context->PSSetSamplers(0, 1, sams0);
@@ -713,7 +715,7 @@ void GraphicsApp::Render() {
 
     m_context->RSSetViewports(1, &finalVP);
     ID3D11RenderTargetView* rtFinal[] = { m_rtv.Get() };
-    m_context->OMSetRenderTargets(1, rtFinal, m_depthStencilView.Get());
+    m_context->OMSetRenderTargets(1, rtFinal, nullptr);
 
     DrawFullscreenTexture(m_canvasSRV.Get());
 
@@ -757,3 +759,21 @@ struct AdvancedVertex
     DirectX::XMFLOAT3 normal;     // 法线 (nx, ny, nz)
     DirectX::XMFLOAT3 tangent;    // 切线 (tx, ty, tz)
 };
+
+void GraphicsApp::UpdateFrameConstantBuffer()
+{
+    PerFrameCB frameData = {};
+
+    DirectX::XMVECTOR lightDirVec = DirectX::XMLoadFloat3(&m_lightDirection);
+    DirectX::XMStoreFloat3(&frameData.lightDirWS, DirectX::XMVector3Normalize(lightDirVec));
+
+    frameData.ambientColor = DirectX::XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
+    frameData.lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
+    D3D11_MAPPED_SUBRESOURCE mappedResource;
+    m_context->Map(m_constantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+    memcpy(mappedResource.pData, &frameData, sizeof(PerFrameCB));
+    m_context->Unmap(m_constantBuffer.Get(), 0);
+
+    m_context->PSSetConstantBuffers(1, 1, m_constantBuffer.GetAddressOf());
+}

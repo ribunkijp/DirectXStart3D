@@ -52,6 +52,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11BlendState> m_blendStateAdditive;
     Microsoft::WRL::ComPtr<ID3D11BlendState> m_blendStateMultiply;
     Microsoft::WRL::ComPtr<ID3D11BlendState> m_blendStateScreen;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> m_constantBuffer;
 
     HWND m_hwnd = nullptr;
 

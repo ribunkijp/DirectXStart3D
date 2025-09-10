@@ -8,13 +8,14 @@
  **********************************************************************************/
 
 #include "Pch.h"
-#include " GraphicsApp.h"
+#include "GraphicsApp.h"
 #include "Camera.h"
 #include <dxgi1_6.h>
 #include "GraphicsUtils.h"
 #include "CommonTypes.h"
 #include "BufferUtils.h"
 #include "Timer.h"
+#include "Player.h"
 
 GraphicsApp::GraphicsApp() {
     DirectX::XMStoreFloat4x4(
@@ -295,11 +296,11 @@ bool GraphicsApp::Initialize(HWND hwnd) {
 
     // inputlayout
     D3D11_INPUT_ELEMENT_DESC layout[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TANGENT",  0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+      { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+      { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+      { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+      { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+      { "TANGENT",  0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     hr = m_device->CreateInputLayout(
         layout,
@@ -471,8 +472,17 @@ bool GraphicsApp::Initialize(HWND hwnd) {
     }
 
 
+    m_constantBuffer = BufferUtils::CreateConstantBuffer(m_device.Get(), sizeof(PerFrameCB));
+    if (!m_constantBuffer) {
+        MessageBoxW(m_hwnd, L"Failed to create PerFrame constant buffer.", L"Error", MB_OK);
+        return false;
+    }
 
 
+    m_timer = std::make_unique<Timer>();
+
+    m_player = std::make_unique<Player>();
+    m_player->Load(m_device.Get(), m_context.Get());
 
 
     return true;
@@ -673,7 +683,7 @@ void GraphicsApp::Render() {
     canvasVP.MaxDepth = 1.0f;
     m_context->RSSetViewports(1, &canvasVP);
 
-    const float canvasClearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    const float canvasClearColor[4] = { 1.0f, 1.0f, 0.8f, 1.0f };
     m_context->ClearRenderTargetView(m_canvasRTV.Get(), canvasClearColor);
     m_context->ClearDepthStencilView(m_canvasDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 
@@ -684,10 +694,13 @@ void GraphicsApp::Render() {
     m_context->VSSetShader(m_vertexShader.Get(), nullptr, 0);
     m_context->PSSetShader(m_pixelShader.Get(), nullptr, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);//三角形
-    m_context->OMSetDepthStencilState(m_depthStencilStateTransparent.Get(), 0);
+    m_context->OMSetDepthStencilState(m_depthStateDefault.Get(), 0);
     m_context->OMSetBlendState(m_blendStateNormal.Get(), nullptr, 0xffffffff);
 
+    ID3D11SamplerState* sams0[] = { m_samplerState.Get() };
+    m_context->PSSetSamplers(0, 1, sams0);
 
+    m_player->Render(m_context.Get(), m_camera->GetViewMatrix(), XMLoadFloat4x4(&m_projection), DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
 
 
 

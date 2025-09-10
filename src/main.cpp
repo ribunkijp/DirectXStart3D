@@ -8,7 +8,7 @@
  **********************************************************************************/
 
 #include "Pch.h"
-#include " GraphicsApp.h"
+#include "GraphicsApp.h"
 #include <ShellScalingAPI.h> //dpi
 
 

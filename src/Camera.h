@@ -19,7 +19,7 @@ public:
     DirectX::XMMATRIX GetViewMatrix() const;
     void Rotate(float deltaYaw, float deltaPitch);
     void Update(const DirectX::XMFLOAT3& targetPosition);
-  ;
+    float GetYaw() const;
 
 private:
 

@@ -48,10 +48,14 @@ void Camera::Update(const DirectX::XMFLOAT3& targetPosition)
     forwardDirectionVec = DirectX::XMVector3Normalize(forwardDirectionVec);
 
 
-    float pitchNormalized = (m_pitch - minPitchRadians) / (maxPitchRadians - minPitchRadians);
-    pitchNormalized = std::clamp(pitchNormalized, 0.0f, 1.0f);
-    const float distanceAdjustStrength = 0.50f;
-    float adjustedDistance = baseDistance * (1.0f + distanceAdjustStrength * (pitchNormalized - 0.5f));
+    float upness = 0.5f * (DirectX::XMVectorGetY(forwardDirectionVec) + 1.0f);
+    upness = std::clamp(upness, 0.0f, 1.0f);
+    float upnessEmphasized = powf(upness, 3.0f);
+
+    const float distanceAdjustStrength = 0.70f;
+    float adjustedDistance = baseDistance * (1.0f - distanceAdjustStrength * upnessEmphasized); 
+    adjustedDistance = std::clamp(adjustedDistance, baseDistance * 0.30f, baseDistance * 1.45f);
+
 
    
     DirectX::XMVECTOR focusPositionVector = DirectX::XMLoadFloat3(&m_focusPos);
@@ -74,3 +78,5 @@ void Camera::Update(const DirectX::XMFLOAT3& targetPosition)
 
     DirectX::XMStoreFloat4x4(&m_view, viewMatrix);
 }
+
+float Camera::GetYaw() const { return m_yaw; }

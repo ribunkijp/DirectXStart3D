@@ -132,9 +132,9 @@ void Player::UpdateConstantBuffer(ID3D11DeviceContext* context,
     }
 }
 
-void Player::Rotate(float deltaYaw)
+void Player::SetRotationY(float yaw)
 {
-    m_rotation.y += deltaYaw;
+    m_rotation.y = yaw;
 }
 
 DirectX::XMFLOAT3 Player::GetPosition() const
@@ -145,4 +145,31 @@ DirectX::XMFLOAT3 Player::GetPosition() const
 DirectX::XMFLOAT3 Player::GetRotation() const
 {
     return m_rotation;
+}
+
+void Player::SetTargetVelocity(const DirectX::XMFLOAT3& targetVelocity)
+{
+    m_targetVelocity = targetVelocity;
+   
+}
+
+void Player::Update(float deltaTime)
+{
+    DirectX::XMVECTOR currentVel = DirectX::XMLoadFloat3(&m_velocity);
+    DirectX::XMVECTOR targetVel = DirectX::XMLoadFloat3(&m_targetVelocity);
+    // 线性插值(Lerp)
+    const float smoothingFactor = 0.15f;
+    currentVel = DirectX::XMVectorLerp(currentVel, targetVel, smoothingFactor);
+
+    const float EpsilonSq = (1e-4f) * (1e-4f);
+    if (DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(currentVel)) < EpsilonSq)
+    {
+        currentVel = DirectX::XMVectorZero();// 清零
+    }
+
+    DirectX::XMStoreFloat3(&m_velocity, currentVel);
+    
+    DirectX::XMVECTOR posVec = DirectX::XMLoadFloat3(&m_position);
+    posVec = DirectX::XMVectorAdd(posVec, DirectX::XMVectorScale(currentVel, deltaTime));
+    DirectX::XMStoreFloat3(&m_position, posVec);
 }

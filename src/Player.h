@@ -21,9 +21,11 @@ public:
 	);
 	void Render(ID3D11DeviceContext* context, const DirectX::XMMATRIX& view,
 		const DirectX::XMMATRIX& projection, const DirectX::XMFLOAT4& tintColor);
-	void Rotate(float deltaYaw);
+	void SetRotationY(float yaw);
+	void SetTargetVelocity(const DirectX::XMFLOAT3& targetVelocity);
 	DirectX::XMFLOAT3 GetPosition() const;
 	DirectX::XMFLOAT3 GetRotation() const;
+	void Update(float deltaTime);
 
 private:
 	void InitVertexData(ID3D11Device* device, ID3D11DeviceContext* context);
@@ -40,7 +42,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
 	UINT m_indexCount = 0;
-
+	DirectX::XMFLOAT3 m_velocity = { 0.0f, 0.0f, 0.0f };
+	DirectX::XMFLOAT3 m_targetVelocity = { 0.0f, 0.0f, 0.0f };
 };
 
 

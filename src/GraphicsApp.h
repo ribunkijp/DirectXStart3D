@@ -98,7 +98,7 @@ private:
 
     std::unique_ptr<InputController> m_inputController;
 
-
+    DirectX::XMVECTOR m_smoothedMoveDirection = {};// 平滑后的移动方向
 };
 
 

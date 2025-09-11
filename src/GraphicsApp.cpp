@@ -817,18 +817,78 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
 {
     POINT mouseDelta = m_inputController->GetMouseDelta();
     
-    const float mouseSens = 0.0025f; // 每像素约 0.143°（=0.0025 rad）
+    const float mouseSens = 0.0015f; 
     float dYaw = mouseDelta.x * mouseSens;
     float dPitch = mouseDelta.y * mouseSens;
 
     if (m_camera)
     {
         m_camera->Rotate(dYaw, dPitch);
-        
-        if (m_player)
-        {
-            m_camera->Update(m_player->GetPosition());
+    }
+
+    if (m_player && m_inputController && m_camera) {
+
+        float cameraYaw = m_camera->GetYaw();
+        DirectX::XMMATRIX cameraRotation = DirectX::XMMatrixRotationY(cameraYaw);
+        // 相机在水平面上的前和右方向向量
+        DirectX::XMVECTOR forwardVec = DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(0, 0, 1, 0), cameraRotation);
+        DirectX::XMVECTOR rightVec = DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(1, 0, 0, 0), cameraRotation);
+
+        DirectX::XMVECTOR moveDirection = DirectX::XMVectorZero();
+
+        if (m_inputController->IsKeyPressed('W')) {
+            moveDirection = DirectX::XMVectorAdd(moveDirection, forwardVec);
         }
+        if (m_inputController->IsKeyPressed('S')) {
+            moveDirection = DirectX::XMVectorSubtract(moveDirection, forwardVec);
+        }
+        if (m_inputController->IsKeyPressed('A')) {
+            moveDirection = DirectX::XMVectorSubtract(moveDirection, rightVec);
+        }
+        if (m_inputController->IsKeyPressed('D')) {
+            moveDirection = DirectX::XMVectorAdd(moveDirection, rightVec);
+        }
+
+     
+
+        // XMVector3LengthSq 计算向量长度平方的函数 返回 x*x + y*y + z*z;   XMVector3Length 会再开平方
+        const float Epsilon = 1e-6f; // 0.000001f
+        DirectX::XMFLOAT3 targetVelocity = { 0.0f, 0.0f, 0.0f };
+        if (DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(moveDirection)) > Epsilon) {
+
+            float currentYaw = m_player->GetRotation().y;
+
+            // atan2f 根据移动方向向量的 X 和 Z 分量，计算出向量在水平面上的角度
+            float targetYaw = atan2f(DirectX::XMVectorGetX(moveDirection), DirectX::XMVectorGetZ(moveDirection));
+            float angleDiff = targetYaw - currentYaw;
+            while (angleDiff > DirectX::XM_PI) {
+                angleDiff -= DirectX::XM_2PI;
+            }
+            while (angleDiff < -DirectX::XM_PI) {
+                angleDiff += DirectX::XM_2PI;
+            }
+            const float turnSpeed = 15.0f;
+            float newYaw = currentYaw + angleDiff * turnSpeed * deltaTime;
+            
+            m_player->SetRotationY(newYaw);
+
+            // 防止斜向移动比直线移动更快
+            moveDirection = DirectX::XMVector3Normalize(moveDirection);
+          
+            const float playerSpeed = 5.0f;
+            DirectX::XMVECTOR velocity = DirectX::XMVectorScale(moveDirection, playerSpeed);
+
+            DirectX::XMStoreFloat3(&targetVelocity, velocity);
+        }
+       
+        m_player->SetTargetVelocity(targetVelocity);
+        
+        m_player->Update(deltaTime);
+    }
+
+    if (m_camera && m_player)
+    {
+        m_camera->Update(m_player->GetPosition());
     }
 
     m_inputController->EndFrame();

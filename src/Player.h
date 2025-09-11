@@ -21,7 +21,9 @@ public:
 	);
 	void Render(ID3D11DeviceContext* context, const DirectX::XMMATRIX& view,
 		const DirectX::XMMATRIX& projection, const DirectX::XMFLOAT4& tintColor);
-
+	void Rotate(float deltaYaw);
+	DirectX::XMFLOAT3 GetPosition() const;
+	DirectX::XMFLOAT3 GetRotation() const;
 
 private:
 	void InitVertexData(ID3D11Device* device, ID3D11DeviceContext* context);

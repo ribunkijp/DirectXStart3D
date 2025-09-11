@@ -15,6 +15,7 @@ set(SOURCES
   src/BufferUtils.cpp
   src/Timer.cpp
   src/Player.cpp
+  src/InputController.cpp
 )
 
 set(HEADERS
@@ -26,6 +27,7 @@ set(HEADERS
   src/BufferUtils.h
   src/Timer.h
   src/Player.h
+  src/InputController.h
 )
 
 add_executable(DirectXStart3D WIN32 ${SOURCES})

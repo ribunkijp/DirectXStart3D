@@ -131,3 +131,18 @@ void Player::UpdateConstantBuffer(ID3D11DeviceContext* context,
         context->Unmap(m_constantBuffer.Get(), 0);
     }
 }
+
+void Player::Rotate(float deltaYaw)
+{
+    m_rotation.y += deltaYaw;
+}
+
+DirectX::XMFLOAT3 Player::GetPosition() const
+{
+    return m_position;
+}
+
+DirectX::XMFLOAT3 Player::GetRotation() const
+{
+    return m_rotation;
+}

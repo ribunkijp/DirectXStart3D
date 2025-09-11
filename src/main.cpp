@@ -8,6 +8,7 @@
  **********************************************************************************/
 
 #include "Pch.h"
+#include "windowsx.h"
 #include "GraphicsApp.h"
 #include <ShellScalingAPI.h> //dpi
 
@@ -146,26 +147,51 @@ LRESULT CALLBACK WindowProc(
     }
 
     switch (uMsg) {
-    case WM_CLOSE:
-        DestroyWindow(hwnd);
-        return 0;
+        case WM_CLOSE:
+            DestroyWindow(hwnd);
+            return 0;
 
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        return 0;
-    case WM_SIZE:
-    {
-        if (g_pApp) {
-            UINT width = LOWORD(lParam);
-            UINT height = HIWORD(lParam);
-            if (width > 0 && height > 0) {
-                g_pApp->OnResize(width, height);
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            return 0;
+        case WM_SIZE:
+        {
+            if (g_pApp) {
+                UINT width = LOWORD(lParam);
+                UINT height = HIWORD(lParam);
+                if (width > 0 && height > 0) {
+                    g_pApp->OnResize(width, height);
+                }
             }
+            return 0;
         }
-        return 0;
-    }
-    }
+        case WM_INPUT:
+        {
+            if (g_pApp) {
+                UINT dwSize = 0;
+                // 第一次调用获取所需缓冲区大小
+                GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
 
+                // 分配内存并第二次调用来获取数据
+                if (dwSize > 0) {
+                    std::vector<BYTE> rawBuffer(dwSize);
+                    if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, rawBuffer.data(), &dwSize, sizeof(RAWINPUTHEADER)) == dwSize)
+                    {
+                        RAWINPUT* raw = (RAWINPUT*)rawBuffer.data();
+                        // 确认是鼠标输入
+                        if (raw->header.dwType == RIM_TYPEMOUSE)
+                        {
+                            // raw->data.mouse.lLastX 和 lLastY 鼠标增量
+                            g_pApp->OnRawMouseMove(raw->data.mouse.lLastX, raw->data.mouse.lLastY);
+
+
+                        }
+                    }
+                }
+            }
+
+        }
+    }
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 

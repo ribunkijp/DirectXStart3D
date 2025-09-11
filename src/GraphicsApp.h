@@ -16,6 +16,7 @@
 class Camera;
 class Timer;
 class Player;
+class InputController;
 
 
 class GraphicsApp {
@@ -26,6 +27,7 @@ public:
     bool Initialize(HWND hwnd);
     void OnResize(UINT width, UINT height);
     void Run();
+    void OnRawMouseMove(long dx, long dy);
 
 private:
     void UpdateProjectionMatrix();
@@ -33,6 +35,7 @@ private:
     void Render();
     void DrawFullscreenTexture(ID3D11ShaderResourceView* srv);
     void UpdateFrameConstantBuffer();
+    void ProcessInputAndUpdateWorld(float deltaTime);
 
 private:
     Microsoft::WRL::ComPtr<ID3D11Device> m_device;
@@ -90,7 +93,11 @@ private:
 
     std::unique_ptr<Player> m_player = nullptr;
 
-    DirectX::XMFLOAT3 m_lightDirection = { -0.707f, -0.707f, 0.707f };//光来自右上后方向(物体坐标-光源坐标)
+    DirectX::XMFLOAT3 m_lightDirection = { -0.707f, -0.707f, 0.707f };//光来自右上方向(物体坐标-光源坐标)
+
+    std::unique_ptr<InputController> m_inputController;
+
+
 };
 
 

@@ -16,6 +16,7 @@
 #include "BufferUtils.h"
 #include "Timer.h"
 #include "Player.h"
+#include "InputController.h"
 
 GraphicsApp::GraphicsApp() {
     DirectX::XMStoreFloat4x4(
@@ -46,7 +47,19 @@ GraphicsApp::~GraphicsApp() {
 bool GraphicsApp::Initialize(HWND hwnd) {
     m_hwnd = hwnd;
 
-    m_camera = std::make_unique<Camera>();
+
+    RAWINPUTDEVICE rid;
+    rid.usUsagePage = 0x01; // Generic Desktop Controls
+    rid.usUsage = 0x02;     // Mouse
+    rid.dwFlags = RIDEV_INPUTSINK; // 即使窗口不在前台也接收消息 (可选)
+    rid.hwndTarget = hwnd;
+
+    if (RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE)) == FALSE) {
+        // 注册失败，可以弹出一个错误消息
+        MessageBoxW(hwnd, L"Failed to register raw input device.", L"Error", MB_OK);
+        return false;
+    }
+    
 
 
     RECT rect;
@@ -478,8 +491,11 @@ bool GraphicsApp::Initialize(HWND hwnd) {
         return false;
     }
 
+    m_camera = std::make_unique<Camera>();
 
     m_timer = std::make_unique<Timer>();
+
+    m_inputController = std::make_unique<InputController>();
 
     m_player = std::make_unique<Player>();
     m_player->Load(m_device.Get(), m_context.Get());
@@ -668,7 +684,9 @@ void GraphicsApp::Run()
 }
 
 void GraphicsApp::Update(float deltaTime) {
-
+    
+    ProcessInputAndUpdateWorld(deltaTime);
+    
 }
 
 void GraphicsApp::Render() {
@@ -776,4 +794,27 @@ void GraphicsApp::UpdateFrameConstantBuffer()
     m_context->Unmap(m_constantBuffer.Get(), 0);
 
     m_context->PSSetConstantBuffers(1, 1, m_constantBuffer.GetAddressOf());
+}
+
+void GraphicsApp::OnRawMouseMove(long dx, long dy)
+{
+    if (m_inputController) {
+        m_inputController->OnRawMouseMove(dx, dy);
+    }
+}
+
+void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
+{
+    POINT mouseDelta = m_inputController->GetMouseDelta();
+    if (mouseDelta.x != 0 || mouseDelta.y != 0)
+    {
+        float sensitivity = 0.001f;
+        m_player->Rotate(mouseDelta.x * sensitivity);
+        m_camera->Rotate(0.0f, mouseDelta.y * sensitivity);
+    }
+    
+    m_camera->UpdateThirdPerson(m_player->GetPosition(), m_player->GetRotation().y);
+
+    m_inputController->EndFrame();
+
 }

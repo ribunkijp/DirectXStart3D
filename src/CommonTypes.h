@@ -19,6 +19,13 @@ struct Vertex
     DirectX::XMFLOAT3 tangent;//切线 (Tangent) 的方向 = 纹理U坐标增加的方向  
 };
 
+struct PresentVertex
+{
+    DirectX::XMFLOAT3 position;
+    DirectX::XMFLOAT4 color;
+    DirectX::XMFLOAT2 texcoord;
+};
+
 struct PerObjectCB
 {
     DirectX::XMFLOAT4X4 world;      

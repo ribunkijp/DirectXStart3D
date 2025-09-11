@@ -12,29 +12,15 @@
 
 
 Camera::Camera() {
-    UpdateViewMatrix();
+    
 }
 Camera::~Camera(){}
 
-void Camera::UpdateViewMatrix()
-{
-    DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(m_pitch, m_yaw, 0);
-    DirectX::XMVECTOR forward = DirectX::XMVector3TransformCoord({ 0.0f, 0.0f, 1.0f, 0.0f }, rotationMatrix);
-    DirectX::XMVECTOR eyePos = DirectX::XMLoadFloat3(&m_position);
-    DirectX::XMVECTOR focusPos = DirectX::XMVectorAdd(eyePos, forward);
-    DirectX::XMVECTOR upDirection = DirectX::XMLoadFloat3(&m_upDirection);
-
-    DirectX::XMMATRIX view = DirectX::XMMatrixLookAtLH(eyePos, focusPos, upDirection);
-    DirectX::XMStoreFloat4x4(&m_view, view);
-}
 
 void Camera::Rotate(float deltaYaw, float deltaPitch)
 {
-    //m_yaw += deltaYaw;
+    m_yaw += deltaYaw;
     m_pitch += deltaPitch;
-
-    constexpr float pitchLimit = DirectX::XM_PIDIV2 - 0.01f;
-    m_pitch = std::clamp(m_pitch, -pitchLimit, pitchLimit);
 }
 
 DirectX::XMMATRIX Camera::GetViewMatrix() const
@@ -42,26 +28,49 @@ DirectX::XMMATRIX Camera::GetViewMatrix() const
     return DirectX::XMLoadFloat4x4(&m_view);
 }
 
-void Camera::UpdateThirdPerson(const DirectX::XMFLOAT3& playerPosition, float playerYaw)
+void Camera::Update(const DirectX::XMFLOAT3& targetPosition)
 {
-    float distance = 8.0f; // 像机和玩家距离
-    float height = 3.0f;   // 像机和玩家高度差
+    const float baseDistance = 12.0f;  
+    const float pivotHeight = 1.5f;  
 
-    m_position.x = playerPosition.x - sinf(playerYaw) * distance;
-    m_position.z = playerPosition.z - cosf(playerYaw) * distance;
-    m_position.y = playerPosition.y + height;
+    constexpr float minPitchRadians = DirectX::XMConvertToRadians(-89.0f);
+    constexpr float maxPitchRadians = DirectX::XMConvertToRadians(89.0f);
+    if (m_pitch < minPitchRadians) m_pitch = minPitchRadians;
+    if (m_pitch > maxPitchRadians) m_pitch = maxPitchRadians;
 
-    DirectX::XMFLOAT3 focus = playerPosition;
-    focus.y += 1.5f;
+   
+    m_focusPos = { targetPosition.x, targetPosition.y + pivotHeight, targetPosition.z };
 
-    DirectX::XMVECTOR eyePos = DirectX::XMLoadFloat3(&m_position);
-    DirectX::XMVECTOR focusPos = DirectX::XMLoadFloat3(&focus);
-    DirectX::XMVECTOR upDirection = DirectX::XMLoadFloat3(&m_upDirection); // {0,1,0}
 
-    DirectX::XMMATRIX view = DirectX::XMMatrixLookAtLH(eyePos, focusPos, upDirection);
+    DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(m_pitch, m_yaw, 0.0f);
+    DirectX::XMVECTOR forwardDirectionVec =
+        DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotationMatrix);
+    forwardDirectionVec = DirectX::XMVector3Normalize(forwardDirectionVec);
 
-    DirectX::XMMATRIX pitchRotation = DirectX::XMMatrixRotationX(m_pitch);
-    view = DirectX::XMMatrixMultiply(pitchRotation, view);
 
-    DirectX::XMStoreFloat4x4(&m_view, view);
+    float pitchNormalized = (m_pitch - minPitchRadians) / (maxPitchRadians - minPitchRadians);
+    pitchNormalized = std::clamp(pitchNormalized, 0.0f, 1.0f);
+    const float distanceAdjustStrength = 0.50f;
+    float adjustedDistance = baseDistance * (1.0f + distanceAdjustStrength * (pitchNormalized - 0.5f));
+
+   
+    DirectX::XMVECTOR focusPositionVector = DirectX::XMLoadFloat3(&m_focusPos);
+    DirectX::XMVECTOR cameraPositionVector = DirectX::XMVectorSubtract(
+        focusPositionVector,
+        DirectX::XMVectorScale(forwardDirectionVec, adjustedDistance)
+    );
+
+
+    DirectX::XMStoreFloat3(&m_position, cameraPositionVector);
+
+    DirectX::XMVECTOR upDirectionVector = DirectX::XMLoadFloat3(&m_upDirection);
+    upDirectionVector = DirectX::XMVector3Normalize(upDirectionVector);
+
+    DirectX::XMMATRIX viewMatrix = DirectX::XMMatrixLookAtLH(
+        cameraPositionVector,
+        focusPositionVector,
+        upDirectionVector
+    );
+
+    DirectX::XMStoreFloat4x4(&m_view, viewMatrix);
 }

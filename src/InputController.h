@@ -20,7 +20,7 @@ public:
 	void EndFrame();
 
 private:
-	POINT m_mouseDelta;
+	POINT m_mouseDelta = { 0, 0 };
 
 
 };

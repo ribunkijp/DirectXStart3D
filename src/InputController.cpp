@@ -17,6 +17,10 @@ InputController::~InputController() {}
 void InputController::OnRawMouseMove(long dx, long dy) {
     m_mouseDelta.x += dx;
     m_mouseDelta.y += dy;
+
+    wchar_t buffer[128];
+    swprintf_s(buffer, L"m_mouseDelta.x=%ld, m_mouseDelta.y=%ld\n", m_mouseDelta.x, m_mouseDelta.y);
+    OutputDebugStringW(buffer);
 }
 
 POINT InputController::GetMouseDelta()

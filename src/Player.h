@@ -41,7 +41,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
 	UINT m_indexCount = 0;
 
-
 };
 
 

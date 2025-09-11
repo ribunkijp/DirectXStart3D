@@ -49,13 +49,12 @@ bool GraphicsApp::Initialize(HWND hwnd) {
 
 
     RAWINPUTDEVICE rid;
-    rid.usUsagePage = 0x01; // Generic Desktop Controls
-    rid.usUsage = 0x02;     // Mouse
-    rid.dwFlags = RIDEV_INPUTSINK; // 即使窗口不在前台也接收消息 (可选)
+    rid.usUsagePage = 0x01;
+    rid.usUsage = 0x02;
+    rid.dwFlags = 0;
     rid.hwndTarget = hwnd;
 
     if (RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE)) == FALSE) {
-        // 注册失败，可以弹出一个错误消息
         MessageBoxW(hwnd, L"Failed to register raw input device.", L"Error", MB_OK);
         return false;
     }
@@ -458,7 +457,7 @@ bool GraphicsApp::Initialize(HWND hwnd) {
         return false;
     }
 
-    Vertex quadVerts[4] = {
+    PresentVertex quadVerts[4] = {
        { { -1.f,-1.f,0.f }, {1,1,1,1}, {0.f,1.f} },
        { {  1.f,-1.f,0.f }, {1,1,1,1}, {1.f,1.f} },
        { {  1.f, 1.f,0.f }, {1,1,1,1}, {1.f,0.f} },
@@ -470,6 +469,25 @@ bool GraphicsApp::Initialize(HWND hwnd) {
     m_presentIB = BufferUtils::CreateStaticIndexBuffer(m_device.Get(), quadIdx, sizeof(quadIdx));
     if (!m_presentIB) { MessageBoxW(m_hwnd, L"Create present IB failed.", L"Error", MB_OK); return false; }
 
+    
+    
+    D3D11_INPUT_ELEMENT_DESC presentLayout[] = {
+       { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0,  D3D11_INPUT_PER_VERTEX_DATA, 0 },
+       { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+       { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+
+    hr = m_device->CreateInputLayout(
+        presentLayout,
+        ARRAYSIZE(presentLayout),
+        vstBlob_Present->GetBufferPointer(), 
+        vstBlob_Present->GetBufferSize(),
+        m_presentInputLayout.GetAddressOf()
+    );
+    if (FAILED(hr)) {
+        MessageBoxW(m_hwnd, L"Failed to create present input layout.", L"Error", MB_OK);
+        return false;
+    }
 
 
     // 逆时针默认被视作正面, 顺时针默认被视作背面，三角形三个顶点在屏幕上的环绕顺序判断朝向
@@ -744,7 +762,7 @@ void GraphicsApp::DrawFullscreenTexture(ID3D11ShaderResourceView* srv)
 {
     if (!srv) return;
     m_context->RSSetState(m_rsNoCull.Get());// 关闭背面剔除
-    m_context->IASetInputLayout(m_inputLayout.Get());
+    m_context->IASetInputLayout(m_presentInputLayout.Get());
     m_context->VSSetShader(m_presentVS.Get(), nullptr, 0);
     m_context->PSSetShader(m_presentPS.Get(), nullptr, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -757,7 +775,7 @@ void GraphicsApp::DrawFullscreenTexture(ID3D11ShaderResourceView* srv)
     ID3D11SamplerState* sams[] = { m_samplerState.Get() };
     m_context->PSSetSamplers(0, 1, sams);
 
-    const UINT stride = sizeof(Vertex);
+    const UINT stride = sizeof(PresentVertex);
     const UINT offset = 0;
     ID3D11Buffer* vbs[] = { m_presentVB.Get() };
     m_context->IASetVertexBuffers(0, 1, vbs, &stride, &offset);
@@ -769,14 +787,6 @@ void GraphicsApp::DrawFullscreenTexture(ID3D11ShaderResourceView* srv)
     m_context->PSSetShaderResources(0, 1, nullSRV);
 }
 
-struct AdvancedVertex
-{
-    DirectX::XMFLOAT3 position;   // 位置 (x, y, z)
-    DirectX::XMFLOAT4 color;      // 顶点颜色 (r, g, b, a)
-    DirectX::XMFLOAT2 texCoord;   // 纹理坐标 (u, v)
-    DirectX::XMFLOAT3 normal;     // 法线 (nx, ny, nz)
-    DirectX::XMFLOAT3 tangent;    // 切线 (tx, ty, tz)
-};
 
 void GraphicsApp::UpdateFrameConstantBuffer()
 {
@@ -806,14 +816,20 @@ void GraphicsApp::OnRawMouseMove(long dx, long dy)
 void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
 {
     POINT mouseDelta = m_inputController->GetMouseDelta();
-    if (mouseDelta.x != 0 || mouseDelta.y != 0)
-    {
-        float sensitivity = 0.001f;
-        m_player->Rotate(mouseDelta.x * sensitivity);
-        m_camera->Rotate(0.0f, mouseDelta.y * sensitivity);
-    }
     
-    m_camera->UpdateThirdPerson(m_player->GetPosition(), m_player->GetRotation().y);
+    const float mouseSens = 0.0025f; // 每像素约 0.143°（=0.0025 rad）
+    float dYaw = mouseDelta.x * mouseSens;
+    float dPitch = mouseDelta.y * mouseSens;
+
+    if (m_camera)
+    {
+        m_camera->Rotate(dYaw, dPitch);
+        
+        if (m_player)
+        {
+            m_camera->Update(m_player->GetPosition());
+        }
+    }
 
     m_inputController->EndFrame();
 

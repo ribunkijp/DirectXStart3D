@@ -90,7 +90,7 @@ private:
 
     std::unique_ptr<Player> m_player = nullptr;
 
-    DirectX::XMFLOAT3 m_lightDirection = { -0.707f, -0.707f, -0.707f };
+    DirectX::XMFLOAT3 m_lightDirection = { -0.707f, -0.707f, 0.707f };//光来自右上后方向(物体坐标-光源坐标)
 };
 
 

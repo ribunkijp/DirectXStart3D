@@ -53,8 +53,8 @@ PS_INPUT VSMain(VS_INPUT input)
     PS_INPUT output;
 
     // 计算裁剪空间位置
-    float4 localPos = float4(input.position, 1.0f);
-    float4x4 worldViewProj = mul(mul(world, view), projection);
+    float4 localPos = float4(input.position, 1.0f);//扩展成float4齐次坐标
+    float4x4 worldViewProj = mul(mul(world, view), projection); //世界、观察、投影三个矩阵预乘，得到WVP复合矩阵
     output.position = mul(localPos, worldViewProj);
 
     // 用 worldIT 的上3x3来变换法线/切线（支持非均匀缩放/镜像）
@@ -73,7 +73,7 @@ float4 PSMain(PS_INPUT input) : SV_TARGET
     // 采样基础颜色
     float4 baseColor = albedoTexture.Sample(defaultSampler, input.texCoord);
 
-    // 计算表面法线和光照方向的反方向之间的夹角
+    // 计算表面法线和光照方向的反方向之间的夹角 Lambertian Lighting Model
     float3 normalWS = normalize(input.worldNormal);
     float3 lightDirWSNorm = normalize(lightDirWS);
     float diffuseFactor = saturate(dot(normalWS, -lightDirWSNorm));

@@ -10,6 +10,10 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
+#include <d3d11.h>         
+#include <DirectXMath.h>    
+#include <wrl.h>  
+
 class Player {
 public:
 	Player();

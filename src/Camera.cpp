@@ -33,7 +33,7 @@ void Camera::Update(const DirectX::XMFLOAT3& targetPosition)
     const float baseDistance = 12.0f;  
     const float pivotHeight = 1.5f;  
 
-    constexpr float minPitchRadians = DirectX::XMConvertToRadians(-89.0f);
+    constexpr float minPitchRadians = DirectX::XMConvertToRadians(-80.0f);
     constexpr float maxPitchRadians = DirectX::XMConvertToRadians(89.0f);
     if (m_pitch < minPitchRadians) m_pitch = minPitchRadians;
     if (m_pitch > maxPitchRadians) m_pitch = maxPitchRadians;

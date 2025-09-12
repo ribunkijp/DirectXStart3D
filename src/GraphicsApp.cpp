@@ -17,6 +17,7 @@
 #include "Timer.h"
 #include "Player.h"
 #include "InputController.h"
+#include "Ground.h"
 
 GraphicsApp::GraphicsApp() {
     DirectX::XMStoreFloat4x4(
@@ -378,8 +379,8 @@ bool GraphicsApp::Initialize(HWND hwnd) {
 
     // default 地面用
     D3D11_DEPTH_STENCIL_DESC defaultDepthStencilDesc = {};
-    defaultDepthStencilDesc.DepthEnable = TRUE;                             
-    defaultDepthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;   
+    defaultDepthStencilDesc.DepthEnable = TRUE; //开启深度测试                        
+    defaultDepthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL; //允许写入深度缓冲  
     defaultDepthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS;              
     defaultDepthStencilDesc.StencilEnable = FALSE;
     defaultDepthStencilDesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
@@ -405,7 +406,7 @@ bool GraphicsApp::Initialize(HWND hwnd) {
     // UI用
     D3D11_DEPTH_STENCIL_DESC depthDisabledDesc = {};
     depthDisabledDesc.DepthEnable = FALSE; //关闭深度测试
-    depthDisabledDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;//允许写入深度缓冲
+    depthDisabledDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;//不写入深度
     depthDisabledDesc.DepthFunc = D3D11_COMPARISON_LESS;
     depthDisabledDesc.StencilEnable = FALSE;
     depthDisabledDesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
@@ -514,6 +515,12 @@ bool GraphicsApp::Initialize(HWND hwnd) {
     m_timer = std::make_unique<Timer>();
 
     m_inputController = std::make_unique<InputController>();
+
+    m_ground = std::make_unique<Ground>();
+    if (!m_ground->Initialize(m_device.Get(), 50, 50.0f)) { 
+        MessageBoxW(m_hwnd, L"Failed to create ground.", L"Error", MB_OK); 
+        return false;
+    }
 
     m_player = std::make_unique<Player>();
     m_player->Load(m_device.Get(), m_context.Get());
@@ -719,7 +726,7 @@ void GraphicsApp::Render() {
     canvasVP.MaxDepth = 1.0f;
     m_context->RSSetViewports(1, &canvasVP);
 
-    const float canvasClearColor[4] = { 1.0f, 1.0f, 0.8f, 1.0f };
+    const float canvasClearColor[4] = { 0.337f, 0.322f, 0.322f, 1.0f };
     m_context->ClearRenderTargetView(m_canvasRTV.Get(), canvasClearColor);
     m_context->ClearDepthStencilView(m_canvasDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 
@@ -738,6 +745,12 @@ void GraphicsApp::Render() {
     ID3D11SamplerState* sams0[] = { m_samplerState.Get() };
     m_context->PSSetSamplers(0, 1, sams0);
 
+    if (m_ground) {
+        m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+        m_ground->Render(m_context.Get(), m_camera->GetViewMatrix(), DirectX::XMLoadFloat4x4(&m_projection), DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
+    }
+
+    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_player->Render(m_context.Get(), m_camera->GetViewMatrix(), XMLoadFloat4x4(&m_projection), DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
 
 
@@ -840,7 +853,7 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
         bool isDiagonalThisFrame = (w && (a || d)) || (s && (a || d));
 
         if (wasDiagonalLastFrame && !isDiagonalThisFrame && m_stopGracePeriodTimer <= 0.0f) {
-            m_stopGracePeriodTimer = 0.3f; 
+            m_stopGracePeriodTimer = 0.1f; 
         }
 
         DirectX::XMVECTOR finalMoveDirection;
@@ -851,9 +864,6 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
 
             finalMoveDirection = m_lastMoveDirection;
 
-            if (w || a || s || d) {
-                m_stopGracePeriodTimer = 0.0f;
-            }
         }
         else
         {

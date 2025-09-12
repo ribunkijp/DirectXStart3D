@@ -17,6 +17,7 @@ class Camera;
 class Timer;
 class Player;
 class InputController;
+class Ground;
 
 
 class GraphicsApp {
@@ -108,6 +109,8 @@ private:
 
     float m_stopGracePeriodTimer = 0.0f;
     DirectX::XMVECTOR m_lastMoveDirection = {};
+
+    std::unique_ptr<Ground> m_ground;
 
 };
 

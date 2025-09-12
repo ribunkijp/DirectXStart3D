@@ -27,6 +27,9 @@ public:
 	DirectX::XMFLOAT3 GetRotation() const;
 	void Update(float deltaTime);
 
+	DirectX::XMFLOAT3 GetVelocity() const;
+	DirectX::XMFLOAT3 GetTargetVelocity() const;
+
 
 private:
 	void InitVertexData(ID3D11Device* device, ID3D11DeviceContext* context);

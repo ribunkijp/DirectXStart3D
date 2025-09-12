@@ -813,11 +813,12 @@ void GraphicsApp::OnRawMouseMove(long dx, long dy)
     }
 }
 
+
 void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
 {
     POINT mouseDelta = m_inputController->GetMouseDelta();
-    
-    const float mouseSens = 0.0015f; 
+
+    const float mouseSens = 0.0015f;
     float dYaw = mouseDelta.x * mouseSens;
     float dPitch = mouseDelta.y * mouseSens;
 
@@ -828,62 +829,77 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
 
     if (m_player && m_inputController && m_camera) {
 
-        float cameraYaw = m_camera->GetYaw();
-        DirectX::XMMATRIX cameraRotation = DirectX::XMMatrixRotationY(cameraYaw);
-        // 相机在水平面上的前和右方向向量
-        DirectX::XMVECTOR forwardVec = DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(0, 0, 1, 0), cameraRotation);
-        DirectX::XMVECTOR rightVec = DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(1, 0, 0, 0), cameraRotation);
+        bool w = m_inputController->IsKeyPressed('W');
+        bool a = m_inputController->IsKeyPressed('A');
+        bool s = m_inputController->IsKeyPressed('S');
+        bool d = m_inputController->IsKeyPressed('D');
 
-        DirectX::XMVECTOR moveDirection = DirectX::XMVectorZero();
+        bool wasDiagonalLastFrame = (m_w_pressed_lastFrame && (m_a_pressed_lastFrame || m_d_pressed_lastFrame)) ||
+            (m_s_pressed_lastFrame && (m_a_pressed_lastFrame || m_d_pressed_lastFrame));
 
-        if (m_inputController->IsKeyPressed('W')) {
-            moveDirection = DirectX::XMVectorAdd(moveDirection, forwardVec);
-        }
-        if (m_inputController->IsKeyPressed('S')) {
-            moveDirection = DirectX::XMVectorSubtract(moveDirection, forwardVec);
-        }
-        if (m_inputController->IsKeyPressed('A')) {
-            moveDirection = DirectX::XMVectorSubtract(moveDirection, rightVec);
-        }
-        if (m_inputController->IsKeyPressed('D')) {
-            moveDirection = DirectX::XMVectorAdd(moveDirection, rightVec);
+        bool isDiagonalThisFrame = (w && (a || d)) || (s && (a || d));
+
+        if (wasDiagonalLastFrame && !isDiagonalThisFrame && m_stopGracePeriodTimer <= 0.0f) {
+            m_stopGracePeriodTimer = 0.3f; 
         }
 
-     
+        DirectX::XMVECTOR finalMoveDirection;
 
-        // XMVector3LengthSq 计算向量长度平方的函数 返回 x*x + y*y + z*z;   XMVector3Length 会再开平方
-        const float Epsilon = 1e-6f; // 0.000001f
+        if (m_stopGracePeriodTimer > 0.0f)
+        {
+            m_stopGracePeriodTimer -= deltaTime;
+
+            finalMoveDirection = m_lastMoveDirection;
+
+            if (w || a || s || d) {
+                m_stopGracePeriodTimer = 0.0f;
+            }
+        }
+        else
+        {
+            float cameraYaw = m_camera->GetYaw();
+            DirectX::XMMATRIX cameraRotation = DirectX::XMMatrixRotationY(cameraYaw);
+            DirectX::XMVECTOR forwardVec = DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(0, 0, 1, 0), cameraRotation);
+            DirectX::XMVECTOR rightVec = DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(1, 0, 0, 0), cameraRotation);
+
+            DirectX::XMVECTOR currentMoveDirection = DirectX::XMVectorZero();
+            if (w) currentMoveDirection = DirectX::XMVectorAdd(currentMoveDirection, forwardVec);
+            if (s) currentMoveDirection = DirectX::XMVectorSubtract(currentMoveDirection, forwardVec);
+            if (a) currentMoveDirection = DirectX::XMVectorSubtract(currentMoveDirection, rightVec);
+            if (d) currentMoveDirection = DirectX::XMVectorAdd(currentMoveDirection, rightVec);
+
+            finalMoveDirection = currentMoveDirection;
+
+            const float Epsilon = 1e-6f;
+            if (DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(finalMoveDirection)) > Epsilon) {
+                m_lastMoveDirection = finalMoveDirection;
+            }
+        }
+
         DirectX::XMFLOAT3 targetVelocity = { 0.0f, 0.0f, 0.0f };
-        if (DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(moveDirection)) > Epsilon) {
-
+        const float Epsilon = 1e-6f;
+        if (DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(finalMoveDirection)) > Epsilon) {
             float currentYaw = m_player->GetRotation().y;
-
-            // atan2f 根据移动方向向量的 X 和 Z 分量，计算出向量在水平面上的角度
-            float targetYaw = atan2f(DirectX::XMVectorGetX(moveDirection), DirectX::XMVectorGetZ(moveDirection));
+            float targetYaw = atan2f(DirectX::XMVectorGetX(finalMoveDirection), DirectX::XMVectorGetZ(finalMoveDirection));
             float angleDiff = targetYaw - currentYaw;
-            while (angleDiff > DirectX::XM_PI) {
-                angleDiff -= DirectX::XM_2PI;
-            }
-            while (angleDiff < -DirectX::XM_PI) {
-                angleDiff += DirectX::XM_2PI;
-            }
+            while (angleDiff > DirectX::XM_PI) { angleDiff -= DirectX::XM_2PI; }
+            while (angleDiff < -DirectX::XM_PI) { angleDiff += DirectX::XM_2PI; }
             const float turnSpeed = 15.0f;
             float newYaw = currentYaw + angleDiff * turnSpeed * deltaTime;
-            
             m_player->SetRotationY(newYaw);
 
-            // 防止斜向移动比直线移动更快
-            moveDirection = DirectX::XMVector3Normalize(moveDirection);
-          
+            DirectX::XMVECTOR moveDirNormalized = DirectX::XMVector3Normalize(finalMoveDirection);
             const float playerSpeed = 5.0f;
-            DirectX::XMVECTOR velocity = DirectX::XMVectorScale(moveDirection, playerSpeed);
-
+            DirectX::XMVECTOR velocity = DirectX::XMVectorScale(moveDirNormalized, playerSpeed);
             DirectX::XMStoreFloat3(&targetVelocity, velocity);
         }
-       
         m_player->SetTargetVelocity(targetVelocity);
-        
         m_player->Update(deltaTime);
+
+        m_w_pressed_lastFrame = w;
+        m_a_pressed_lastFrame = a;
+        m_s_pressed_lastFrame = s;
+        m_d_pressed_lastFrame = d;
     }
 
     if (m_camera && m_player)
@@ -892,5 +908,5 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
     }
 
     m_inputController->EndFrame();
-
 }
+

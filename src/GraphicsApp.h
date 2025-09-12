@@ -99,11 +99,17 @@ private:
 
     std::unique_ptr<InputController> m_inputController;
 
+    DirectX::XMVECTOR m_smoothedMoveDirection = {};
+
+    bool m_w_pressed_lastFrame = false;
+    bool m_a_pressed_lastFrame = false;
+    bool m_s_pressed_lastFrame = false;
+    bool m_d_pressed_lastFrame = false;
+
+    float m_stopGracePeriodTimer = 0.0f;
+    DirectX::XMVECTOR m_lastMoveDirection = {};
+
 };
-
-
-
-
 
 
 

@@ -173,3 +173,11 @@ void Player::Update(float deltaTime)
     posVec = DirectX::XMVectorAdd(posVec, DirectX::XMVectorScale(currentVel, deltaTime));
     DirectX::XMStoreFloat3(&m_position, posVec);
 }
+
+DirectX::XMFLOAT3 Player::GetVelocity() const {
+    return m_velocity;
+}
+
+DirectX::XMFLOAT3 Player::GetTargetVelocity() const {
+    return m_targetVelocity;
+}

@@ -29,6 +29,7 @@ public:
     void Run();
     void OnRawMouseMove(long dx, long dy);
 
+
 private:
     void UpdateProjectionMatrix();
     void Update(float deltaTime);
@@ -98,7 +99,6 @@ private:
 
     std::unique_ptr<InputController> m_inputController;
 
-    DirectX::XMVECTOR m_smoothedMoveDirection = {};// 平滑后的移动方向
 };
 
 

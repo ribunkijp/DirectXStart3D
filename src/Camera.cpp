@@ -19,8 +19,8 @@ Camera::~Camera(){}
 
 void Camera::Rotate(float deltaYaw, float deltaPitch)
 {
-    m_yaw += deltaYaw;
-    m_pitch += deltaPitch;
+    m_yaw += deltaYaw; // 偏航角
+    m_pitch += deltaPitch; // 俯仰角
 }
 
 DirectX::XMMATRIX Camera::GetViewMatrix() const
@@ -43,12 +43,11 @@ void Camera::Update(const DirectX::XMFLOAT3& targetPosition)
 
 
     DirectX::XMMATRIX rotationMatrix = DirectX::XMMatrixRotationRollPitchYaw(m_pitch, m_yaw, 0.0f);
-    DirectX::XMVECTOR forwardDirectionVec =
-        DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotationMatrix);
+    DirectX::XMVECTOR forwardDirectionVec = DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotationMatrix);
     forwardDirectionVec = DirectX::XMVector3Normalize(forwardDirectionVec);
 
 
-    float upness = 0.5f * (DirectX::XMVectorGetY(forwardDirectionVec) + 1.0f);
+    float upness = 0.5f * (DirectX::XMVectorGetY(forwardDirectionVec) + 1.0f);// 从-1~1 -> 0~1
     upness = std::clamp(upness, 0.0f, 1.0f);
     float upnessEmphasized = powf(upness, 3.0f);
 

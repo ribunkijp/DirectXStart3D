@@ -32,6 +32,8 @@ DirectX::XMLoadFloat3(&DirectX::XMFLOAT3) // XMFLOAT3 -> XMVECTOR
     
 DirectX::XMVectorZero();// 零向量 (0.0f, 0.0f, 0.0f, 0.0f)
 
+DirectX::XMVectorLerp(currentVel, targetVel, smoothingFactor); //線形補間 / リニア補間
+
     
 
 

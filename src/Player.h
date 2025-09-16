@@ -43,7 +43,7 @@ private:
 		const DirectX::XMFLOAT4& tintColor);
 
 private:
-	DirectX::XMFLOAT3 m_position{ 0.0f, 0.0f, 0.0f };
+	DirectX::XMFLOAT3 m_position{ 0.0f, 0.5f, 0.0f };
 	DirectX::XMFLOAT3 m_rotation{ 0.0f, 0.0f, 0.0f };
 	DirectX::XMFLOAT3 m_scale{ 1.0f, 1.0f, 1.0f };
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_constantBuffer;

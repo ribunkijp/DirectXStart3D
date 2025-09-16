@@ -30,9 +30,8 @@ DirectX::XMMATRIX Camera::GetViewMatrix() const
 
 void Camera::Update(const DirectX::XMFLOAT3& targetPosition)
 {
-    const float baseDistance = 6.0f;  
+    const float baseDistance = 8.0f;  
     const float basePivotHeight = 1.5f;  
-    const float lowPivotHeight = 0.3;
 
     constexpr float minPitchRadians = DirectX::XMConvertToRadians(-80.0f);
     constexpr float maxPitchRadians = DirectX::XMConvertToRadians(89.0f);
@@ -49,8 +48,7 @@ void Camera::Update(const DirectX::XMFLOAT3& targetPosition)
     upness = std::clamp(upness, 0.0f, 1.0f);
     float upnessEmphasized = powf(upness, 3.0f);
 
-    float dynamicPivotHeight = basePivotHeight + (lowPivotHeight - basePivotHeight) * upnessEmphasized;
-    m_focusPos = { targetPosition.x, targetPosition.y + dynamicPivotHeight, targetPosition.z };
+    m_focusPos = { targetPosition.x, targetPosition.y + basePivotHeight, targetPosition.z };
 
     const float distanceAdjustStrength = 1.0f;
     float adjustedDistance = baseDistance * (1.0f - distanceAdjustStrength * upnessEmphasized); 

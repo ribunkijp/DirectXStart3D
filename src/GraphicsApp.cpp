@@ -835,6 +835,8 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
     float dYaw = mouseDelta.x * mouseSens;
     float dPitch = mouseDelta.y * mouseSens;
 
+    const float Epsilon = 1e-6f;// エプシロン
+
     if (m_camera)
     {
         m_camera->Rotate(dYaw, dPitch);
@@ -857,6 +859,7 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
         }
 
         DirectX::XMVECTOR finalMoveDirection;
+        bool isMoving = false;
 
         if (m_stopGracePeriodTimer > 0.0f)
         {
@@ -867,12 +870,12 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
         }
         else
         {
-            float cameraYaw = m_camera->GetYaw();
-            DirectX::XMMATRIX cameraRotation = DirectX::XMMatrixRotationY(cameraYaw);
-            DirectX::XMVECTOR forwardVec = DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(0, 0, 1, 0), cameraRotation);
-            DirectX::XMVECTOR rightVec = DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(1, 0, 0, 0), cameraRotation);
+            float cameraYaw = m_camera->GetYaw();// camera方向
+            DirectX::XMMATRIX cameraRotation = DirectX::XMMatrixRotationY(cameraYaw);// 根据方向创建旋转矩阵
+            DirectX::XMVECTOR forwardVec = DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(0, 0, 1, 0), cameraRotation);// camera正前方的单位方向向量
+            DirectX::XMVECTOR rightVec = DirectX::XMVector3TransformNormal(DirectX::XMVectorSet(1, 0, 0, 0), cameraRotation);// camera正右方的单位方向向量
 
-            DirectX::XMVECTOR currentMoveDirection = DirectX::XMVectorZero();
+            DirectX::XMVECTOR currentMoveDirection = DirectX::XMVectorZero();// 零向量 (0.0f, 0.0f, 0.0f, 0.0f)
             if (w) currentMoveDirection = DirectX::XMVectorAdd(currentMoveDirection, forwardVec);
             if (s) currentMoveDirection = DirectX::XMVectorSubtract(currentMoveDirection, forwardVec);
             if (a) currentMoveDirection = DirectX::XMVectorSubtract(currentMoveDirection, rightVec);
@@ -880,17 +883,16 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
 
             finalMoveDirection = currentMoveDirection;
 
-            const float Epsilon = 1e-6f;
-            if (DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(finalMoveDirection)) > Epsilon) {
+            isMoving = (DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(finalMoveDirection)) > Epsilon);
+            if (isMoving) {
                 m_lastMoveDirection = finalMoveDirection;
             }
         }
 
         DirectX::XMFLOAT3 targetVelocity = { 0.0f, 0.0f, 0.0f };
-        const float Epsilon = 1e-6f;
-        if (DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(finalMoveDirection)) > Epsilon) {
+        if (isMoving) {
             float currentYaw = m_player->GetRotation().y;
-            float targetYaw = atan2f(DirectX::XMVectorGetX(finalMoveDirection), DirectX::XMVectorGetZ(finalMoveDirection));
+            float targetYaw = atan2f(DirectX::XMVectorGetX(finalMoveDirection), DirectX::XMVectorGetZ(finalMoveDirection));// 根据相机朝向和玩家按键计算目标角度
             float angleDiff = targetYaw - currentYaw;
             while (angleDiff > DirectX::XM_PI) { angleDiff -= DirectX::XM_2PI; }
             while (angleDiff < -DirectX::XM_PI) { angleDiff += DirectX::XM_2PI; }
@@ -898,7 +900,7 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
             float newYaw = currentYaw + angleDiff * turnSpeed * deltaTime;
             m_player->SetRotationY(newYaw);
 
-            DirectX::XMVECTOR moveDirNormalized = DirectX::XMVector3Normalize(finalMoveDirection);
+            DirectX::XMVECTOR moveDirNormalized = DirectX::XMVector3Normalize(finalMoveDirection);// vector正規化, 防止斜方向移动快
             const float playerSpeed = 5.0f;
             DirectX::XMVECTOR velocity = DirectX::XMVectorScale(moveDirNormalized, playerSpeed);
             DirectX::XMStoreFloat3(&targetVelocity, velocity);

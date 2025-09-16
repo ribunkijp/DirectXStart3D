@@ -79,4 +79,6 @@ void Camera::Update(const DirectX::XMFLOAT3& targetPosition)
     DirectX::XMStoreFloat4x4(&m_view, viewMatrix);
 }
 
-float Camera::GetYaw() const { return m_yaw; }
+float Camera::GetYaw() const { 
+    return m_yaw; 
+}

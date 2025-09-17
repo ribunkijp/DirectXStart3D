@@ -1,9 +1,12 @@
 {
-  "animation_count": 3,
+  "animation_count": 6,
   "animations": [
     "anim_0.anim",
     "anim_1.anim",
-    "anim_2.anim"
+    "anim_2.anim",
+    "anim_3.anim",
+    "anim_4.anim",
+    "anim_5.anim"
   ],
   "material_count": 1,
   "materials": [

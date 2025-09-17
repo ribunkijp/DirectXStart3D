@@ -42,7 +42,7 @@ bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context, const std:
         return false;
     }
     nlohmann::json sceneJson;
-    sceneFile >> sceneJson;
+    sceneFile >> sceneJson; // 自动读取整个文件
     sceneFile.close();
 
     // load material texture
@@ -95,7 +95,7 @@ bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context, const std:
         }
 
         MeshHeader header;
-        meshFile.read(reinterpret_cast<char*>(&header), sizeof(MeshHeader));
+        meshFile.read(reinterpret_cast<char*>(&header), sizeof(MeshHeader));// 获取顶点和索引大小
         std::vector<modelVertex> vertices(header.vertexCount);
         meshFile.read(reinterpret_cast<char*>(vertices.data()), header.vertexCount * sizeof(modelVertex));
         std::vector<uint32_t>indices(header.indexCount);

@@ -34,25 +34,25 @@ set(HEADERS
   src/TextureLoader.h
 )
 
-add_executable(DirectXStart3D WIN32 ${SOURCES})
+add_executable(${PROJECT_NAME} WIN32 ${SOURCES})
 set_source_files_properties(${HEADERS} PROPERTIES HEADER_FILE_ONLY ON)
 
 source_group(TREE "${CMAKE_SOURCE_DIR}/src" FILES ${SOURCES} ${HEADERS})
 
-target_include_directories(DirectXStart3D PRIVATE
+target_include_directories(${PROJECT_NAME} PRIVATE
   ${CMAKE_SOURCE_DIR}/src
 )
 
-target_precompile_headers(DirectXStart3D PRIVATE
+target_precompile_headers(${PROJECT_NAME} PRIVATE
   "$<$<COMPILE_LANGUAGE:CXX>:Pch.h>"
 )
 
-target_compile_definitions(DirectXStart3D PRIVATE
+target_compile_definitions(${PROJECT_NAME} PRIVATE
   UNICODE _UNICODE NOMINMAX
 )
 
 if (MSVC)
-  target_compile_options(DirectXStart3D PRIVATE
+  target_compile_options(${PROJECT_NAME} PRIVATE
     /W4
     /permissive-
     /utf-8
@@ -64,7 +64,7 @@ if (MSVC)
   )
 endif()
 
-target_link_libraries(DirectXStart3D PRIVATE
+target_link_libraries(${PROJECT_NAME} PRIVATE
   Microsoft::DirectXTex
   nlohmann_json::nlohmann_json
   d3d11
@@ -73,21 +73,21 @@ target_link_libraries(DirectXStart3D PRIVATE
   Shcore.lib
 )
 
-target_include_directories(DirectXStart3D SYSTEM PRIVATE
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
   $<TARGET_PROPERTY:Microsoft::DirectXTex,INTERFACE_INCLUDE_DIRECTORIES>
   $<TARGET_PROPERTY:nlohmann_json::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 if (EXISTS "${CMAKE_SOURCE_DIR}/assets")
-  add_custom_command(TARGET DirectXStart3D POST_BUILD
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_SOURCE_DIR}/assets"
-            "$<TARGET_FILE_DIR:DirectXStart3D>/assets")
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets")
 endif()
 
 if (EXISTS "${CMAKE_SOURCE_DIR}/shaders")
-  add_custom_command(TARGET DirectXStart3D POST_BUILD
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_SOURCE_DIR}/shaders"
-            "$<TARGET_FILE_DIR:DirectXStart3D>/shaders")
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders")
 endif()

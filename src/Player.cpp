@@ -11,102 +11,134 @@
 #include "Player.h"
 #include "CommonTypes.h"
 #include "BufferUtils.h"
+#include "nlohmann/json.hpp"
+#include "TextureLoader.h"
+
+#include <fstream>
+#include <locale>
+
+struct MeshHeader {
+    uint32_t vertexCount;
+    uint32_t indexCount;
+    uint32_t materialIndex;
+};
+
+std::wstring ConvertUtf8ToWstring(const std::string& str);
+
 
 Player::Player() {}
 Player::~Player() {}
 
-bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context) {
+bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context, const std::string& basePath) {
+    m_meshes.clear();
+    m_materials.clear();
 
-    InitVertexData(device, context);
     m_constantBuffer = BufferUtils::CreateConstantBuffer(device, sizeof(PerObjectCB));
+
+    std::string scenePath = basePath + "/scene.json";
+    std::ifstream sceneFile(scenePath);
+    if (!sceneFile.is_open()) {
+        MessageBoxW(nullptr, L"load scene.json 失敗", L"Error", MB_OK);
+        return false;
+    }
+    nlohmann::json sceneJson;
+    sceneFile >> sceneJson;
+    sceneFile.close();
+
+    // load material texture
+    auto materialsNode = sceneJson["materials"]; 
+    for (const auto& materialNode : materialsNode) {
+        std::string materialFileName = materialNode;
+        std::string materialFullPath = basePath + "/" + materialFileName;
+
+        std::ifstream materialFile(materialFullPath);
+        if (!materialFile.is_open()) {
+            MessageBoxW(nullptr, L"load materialFullPath 失敗", L"Error", MB_OK);
+            continue;
+        }
+        nlohmann::json materialJson;
+        materialFile >> materialJson;
+        materialFile.close();
+
+        Material newMaterial;
+        if (materialJson.contains("diffuseTexture")) {
+            std::string textureFileName = materialJson["diffuseTexture"];
+            std::string textureFullPath = basePath + "/" + textureFileName;
+
+            std::wstring widePath = ConvertUtf8ToWstring(textureFullPath);
+
+            HRESULT hr = TextureLoader::LoadTextureAndCreateSRV(
+                device,                    
+                widePath.c_str(),           
+                newMaterial.diffuseTexture, 
+                nullptr,                    
+                nullptr                     
+            );
+            if (FAILED(hr))
+            {
+                MessageBoxW(nullptr, L"texture load 失敗", L"Error", MB_OK);
+            }
+        }
+        m_materials.push_back(std::move(newMaterial));
+    }
+
+    // load mesh
+    auto meshesNode = sceneJson["meshes"];
+    for (const auto& meshNode : meshesNode) {
+        std::string meshFileName = meshNode["file"];
+        uint32_t materialIndex = meshNode["materialIndex"];
+        std::string meshFullPath = basePath + "/" + meshFileName;
+
+        std::ifstream meshFile(meshFullPath, std::ios::binary);
+        if (!meshFile.is_open()) {
+            MessageBoxW(nullptr, L"load mesh 失敗", L"Error", MB_OK);
+        }
+
+        MeshHeader header;
+        meshFile.read(reinterpret_cast<char*>(&header), sizeof(MeshHeader));
+        std::vector<modelVertex> vertices(header.vertexCount);
+        meshFile.read(reinterpret_cast<char*>(vertices.data()), header.vertexCount * sizeof(modelVertex));
+        std::vector<uint32_t>indices(header.indexCount);
+        meshFile.read(reinterpret_cast<char*>(indices.data()), header.indexCount * sizeof(uint32_t));
+        meshFile.close();
+
+        Mesh newMesh;
+        newMesh.indexCount = header.indexCount;
+        newMesh.materialIndex = materialIndex;
+        newMesh.vertexBuffer = BufferUtils::CreateStaticVertexBuffer(device, vertices.data(), header.vertexCount * sizeof(modelVertex));
+        newMesh.indexBuffer = BufferUtils::CreateStaticIndexBuffer(device, indices.data(), header.indexCount * sizeof(uint32_t));
+
+        if (!newMesh.vertexBuffer || !newMesh.indexBuffer) return false;
+
+        m_meshes.push_back(std::move(newMesh));
+    }
 
     return true;
 }
-void Player::InitVertexData(ID3D11Device* device, ID3D11DeviceContext* context) {
-    
-    Vertex vertices[] =
-    {
-        // 前 (z=+0.5) - 红色
-        { {-0.5f,-0.5f, 0.5f}, {1,0,0,1}, {0.0f,1.0f}, {0,0,1}, { 1,0,0} },
-        { {-0.5f, 0.5f, 0.5f}, {1,0,0,1}, {0.0f,0.0f}, {0,0,1}, { 1,0,0} },
-        { { 0.5f, 0.5f, 0.5f}, {1,0,0,1}, {1.0f,0.0f}, {0,0,1}, { 1,0,0} },
-        { { 0.5f,-0.5f, 0.5f}, {1,0,0,1}, {1.0f,1.0f}, {0,0,1}, { 1,0,0} },
 
-        // 后 (z=-0.5) - 绿色
-        { { 0.5f,-0.5f,-0.5f}, {0,1,0,1}, {0.0f,1.0f}, {0,0,-1}, {-1,0,0} },
-        { { 0.5f, 0.5f,-0.5f}, {0,1,0,1}, {0.0f,0.0f}, {0,0,-1}, {-1,0,0} },
-        { {-0.5f, 0.5f,-0.5f}, {0,1,0,1}, {1.0f,0.0f}, {0,0,-1}, {-1,0,0} },
-        { {-0.5f,-0.5f,-0.5f}, {0,1,0,1}, {1.0f,1.0f}, {0,0,-1}, {-1,0,0} },
-
-        // 左 (x=-0.5) - 橙色
-        { {-0.5f,-0.5f,-0.5f}, {1,0.5,0,1}, {0.0f,1.0f}, {-1,0,0}, {0,0, 1} },
-        { {-0.5f, 0.5f,-0.5f}, {1,0.5,0,1}, {0.0f,0.0f}, {-1,0,0}, {0,0, 1} },
-        { {-0.5f, 0.5f, 0.5f}, {1,0.5,0,1}, {1.0f,0.0f}, {-1,0,0}, {0,0, 1} },
-        { {-0.5f,-0.5f, 0.5f}, {1,0.5,0,1}, {1.0f,1.0f}, {-1,0,0}, {0,0, 1} },
-
-        // 右 (x=+0.5) - 紫色
-        { { 0.5f,-0.5f, 0.5f}, {0.5,0,0.5,1}, {0.0f,1.0f}, {1,0,0}, {0,0,-1} },
-        { { 0.5f, 0.5f, 0.5f}, {0.5,0,0.5,1}, {0.0f,0.0f}, {1,0,0}, {0,0,-1} },
-        { { 0.5f, 0.5f,-0.5f}, {0.5,0,0.5,1}, {1.0f,0.0f}, {1,0,0}, {0,0,-1} },
-        { { 0.5f,-0.5f,-0.5f}, {0.5,0,0.5,1}, {1.0f,1.0f}, {1,0,0}, {0,0,-1} },
-
-        // 上 (y=+0.5) - 蓝色
-        { {-0.5f, 0.5f, 0.5f}, {0,0,1,1}, {0.0f,1.0f}, {0,1,0}, { 1,0,0} },
-        { {-0.5f, 0.5f,-0.5f}, {0,0,1,1}, {0.0f,0.0f}, {0,1,0}, { 1,0,0} },
-        { { 0.5f, 0.5f,-0.5f}, {0,0,1,1}, {1.0f,0.0f}, {0,1,0}, { 1,0,0} },
-        { { 0.5f, 0.5f, 0.5f}, {0,0,1,1}, {1.0f,1.0f}, {0,1,0}, { 1,0,0} },
-
-        // 下 (y=-0.5) - 粉色
-        { {-0.5f,-0.5f,-0.5f}, {1,0.7,0.8,1}, {0.0f,1.0f}, {0,-1,0}, { 1,0,0} },
-        { {-0.5f,-0.5f, 0.5f}, {1,0.7,0.8,1}, {0.0f,0.0f}, {0,-1,0}, { 1,0,0} },
-        { { 0.5f,-0.5f, 0.5f}, {1,0.7,0.8,1}, {1.0f,0.0f}, {0,-1,0}, { 1,0,0} },
-        { { 0.5f,-0.5f,-0.5f}, {1,0.7,0.8,1}, {1.0f,1.0f}, {0,-1,0}, { 1,0,0} },
-    };
-
-
-    const UINT indices[] =
-    {
-        0,1,2, 0,2,3,       // 前
-        4,5,6, 4,6,7,       // 后
-        8,9,10, 8,10,11,    // 左
-        12,13,14, 12,14,15, // 右
-        16,17,18, 16,18,19, // 上
-        20,21,22, 20,22,23  // 下
-    };
-
-    m_vertexBuffer = BufferUtils::CreateDynamicVertexBuffer(device, sizeof(vertices));
-    m_indexBuffer = BufferUtils::CreateDynamicIndexBuffer(device, sizeof(indices));
-    m_indexCount = _countof(indices);
-
-    D3D11_MAPPED_SUBRESOURCE mapped{};
-    context->Map(m_vertexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-    memcpy(mapped.pData, vertices, sizeof(vertices));
-    context->Unmap(m_vertexBuffer.Get(), 0);
-
-    context->Map(m_indexBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-    memcpy(mapped.pData, indices, sizeof(indices));
-    context->Unmap(m_indexBuffer.Get(), 0);
-
-}
 
 
 void Player::Render(ID3D11DeviceContext* context, const DirectX::XMMATRIX& view,
     const DirectX::XMMATRIX& projection, const DirectX::XMFLOAT4& tintColor) {
     UpdateConstantBuffer(context, view, projection, tintColor);
 
-    UINT stride = sizeof(Vertex);
+    UINT stride = sizeof(modelVertex);
     UINT offset = 0;
-    ID3D11Buffer* vbs[] = { m_vertexBuffer.Get() };
-    context->IASetVertexBuffers(0, 1, vbs, &stride, &offset);
-    context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
-    ID3D11Buffer* b0[] = { m_constantBuffer.Get() };
-    context->VSSetConstantBuffers(0, 1, b0);
-    context->PSSetConstantBuffers(0, 1, b0);
-    ID3D11ShaderResourceView* srvs[] = { nullptr };
-    context->PSSetShaderResources(0, 1, srvs);
+    for (const auto& mesh : m_meshes) {
+        ID3D11Buffer* vbs[] = { mesh.vertexBuffer.Get() };
+        context->IASetVertexBuffers(0, 1, vbs, &stride, &offset);
+        context->IASetIndexBuffer(mesh.indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 
-    context->DrawIndexed(m_indexCount, 0, 0);
+        if (mesh.materialIndex < m_materials.size())
+        {
+            const auto& mat = m_materials[mesh.materialIndex];
+            ID3D11ShaderResourceView* srvs[] = { mat.diffuseTexture.Get() };
+            context->PSSetShaderResources(0, 1, srvs);
+        }
+
+        context->DrawIndexed(mesh.indexCount, 0, 0);
+    }
 }
 void Player::UpdateConstantBuffer(ID3D11DeviceContext* context,
     const DirectX::XMMATRIX& view,
@@ -133,6 +165,10 @@ void Player::UpdateConstantBuffer(ID3D11DeviceContext* context,
        
         context->Unmap(m_constantBuffer.Get(), 0);
     }
+
+    ID3D11Buffer* b0[] = { m_constantBuffer.Get() };
+    context->VSSetConstantBuffers(0, 1, b0);
+    context->PSSetConstantBuffers(0, 1, b0);
 }
 
 void Player::SetRotationY(float yaw)
@@ -183,4 +219,43 @@ DirectX::XMFLOAT3 Player::GetVelocity() const {
 
 DirectX::XMFLOAT3 Player::GetTargetVelocity() const {
     return m_targetVelocity;
+}
+
+
+std::wstring ConvertUtf8ToWstring(const std::string& str)
+{
+    if (str.empty()) {
+        return std::wstring();
+    }
+
+    // 第一步：调用 MultiByteToWideChar 计算转换后的字符串需要多大的缓冲区。
+    // 我们传入 NULL 作为输出缓冲区，函数会返回所需的字符数。
+    int required_size = MultiByteToWideChar(
+        CP_UTF8,       // 源字符串是UTF-8编码
+        0,             // 默认标志
+        str.c_str(),   // 指向源字符串的指针
+        (int)str.size(), // 源字符串的长度（字节）
+        NULL,          // 输出缓冲区指针，这里为NULL表示查询大小
+        0              // 输出缓冲区大小，这里为0
+    );
+
+    // 如果计算失败，返回空字符串
+    if (required_size == 0) {
+        return std::wstring();
+    }
+
+    // 第二步：创建一个足够大的 wstring 来接收转换后的数据。
+    std::wstring wstr(required_size, 0);
+
+    // 第三步：再次调用 MultiByteToWideChar，这次执行真正的转换。
+    MultiByteToWideChar(
+        CP_UTF8,
+        0,
+        str.c_str(),
+        (int)str.size(),
+        &wstr[0],      // 指向目标wstring缓冲区的指针
+        required_size  // 目标缓冲区的大小
+    );
+
+    return wstr;
 }

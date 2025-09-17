@@ -13,6 +13,21 @@
 #include <d3d11.h>         
 #include <DirectXMath.h>    
 #include <wrl.h>  
+#include <vector>
+#include <string>
+
+struct Mesh
+{
+	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
+	UINT indexCount = 0;
+	UINT materialIndex = 0;
+};
+struct Material
+{
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> diffuseTexture;
+};
+
 
 class Player {
 public:
@@ -21,7 +36,8 @@ public:
 
 	bool Load(
 		ID3D11Device* device,
-		ID3D11DeviceContext* context
+		ID3D11DeviceContext* context,
+		const std::string& basePath
 	);
 	void Render(ID3D11DeviceContext* context, const DirectX::XMMATRIX& view,
 		const DirectX::XMMATRIX& projection, const DirectX::XMFLOAT4& tintColor);
@@ -36,20 +52,21 @@ public:
 
 
 private:
-	void InitVertexData(ID3D11Device* device, ID3D11DeviceContext* context);
 	void UpdateConstantBuffer(ID3D11DeviceContext* context,
 		const DirectX::XMMATRIX& view,
 		const DirectX::XMMATRIX& projection,
 		const DirectX::XMFLOAT4& tintColor);
 
 private:
-	DirectX::XMFLOAT3 m_position{ 0.0f, 0.5f, 0.0f };
+	std::vector<Mesh> m_meshes;
+	std::vector<Material> m_materials;
+
+	DirectX::XMFLOAT3 m_position{ 0.0f, 0.0f, 0.0f };
 	DirectX::XMFLOAT3 m_rotation{ 0.0f, 0.0f, 0.0f };
 	DirectX::XMFLOAT3 m_scale{ 1.0f, 1.0f, 1.0f };
+
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_constantBuffer;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> m_vertexBuffer;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> m_indexBuffer;
-	UINT m_indexCount = 0;
+
 	DirectX::XMFLOAT3 m_velocity = { 0.0f, 0.0f, 0.0f };
 	DirectX::XMFLOAT3 m_targetVelocity = { 0.0f, 0.0f, 0.0f };
 };

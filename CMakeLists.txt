@@ -17,6 +17,7 @@ set(SOURCES
   src/Player.cpp
   src/InputController.cpp
   src/Ground.cpp
+  src/TextureLoader.cpp
 )
 
 set(HEADERS
@@ -30,6 +31,7 @@ set(HEADERS
   src/Player.h
   src/InputController.h
   src/Ground.h
+  src/TextureLoader.h
 )
 
 add_executable(DirectXStart3D WIN32 ${SOURCES})

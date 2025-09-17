@@ -1,0 +1,24 @@
+{
+  "animation_count": 3,
+  "animations": [
+    "anim_0.anim",
+    "anim_1.anim",
+    "anim_2.anim"
+  ],
+  "material_count": 1,
+  "materials": [
+    "material_0.material.json"
+  ],
+  "mesh_count": 2,
+  "meshes": [
+    {
+      "file": "mesh_0.mesh",
+      "materialIndex": 0
+    },
+    {
+      "file": "mesh_1.mesh",
+      "materialIndex": 0
+    }
+  ],
+  "skeleton": "skeleton.json"
+}

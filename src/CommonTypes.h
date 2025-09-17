@@ -10,12 +10,22 @@
 #ifndef COMMONTYPES_H
 #define COMMONTYPES_H
 
+struct modelVertex
+{
+    DirectX::XMFLOAT3 position;
+    DirectX::XMFLOAT2 texcoord;
+    DirectX::XMFLOAT3 normal;
+    DirectX::XMFLOAT3 tangent;//切线 (Tangent) 的方向 = 纹理U坐标增加的方向  
+    int   boneIDs[4];
+    float weights[4];
+};
+
 struct Vertex
 {
-    DirectX::XMFLOAT3 position;  
-    DirectX::XMFLOAT4 color;     
-    DirectX::XMFLOAT2 texcoord;  
-    DirectX::XMFLOAT3 normal;   
+    DirectX::XMFLOAT3 position;
+    DirectX::XMFLOAT4 color;
+    DirectX::XMFLOAT2 texcoord;
+    DirectX::XMFLOAT3 normal;
     DirectX::XMFLOAT3 tangent;//切线 (Tangent) 的方向 = 纹理U坐标增加的方向  
 };
 

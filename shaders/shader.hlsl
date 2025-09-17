@@ -33,16 +33,16 @@ SamplerState defaultSampler : register(s0);
 struct VS_INPUT
 {
     float3 position : POSITION;
-    float4 color : COLOR;
     float2 texCoord : TEXCOORD;
     float3 normal : NORMAL;
     float3 tangent : TANGENT;
+    int4 boneIDs : BONEIDS; 
+    float4 weights : WEIGHTS;
 };
 
 struct PS_INPUT
 {
     float4 position : SV_POSITION;
-    float4 color : COLOR;
     float2 texCoord : TEXCOORD;
     float3 worldNormal : NORMAL;
     float3 worldTangent : TANGENT;
@@ -63,7 +63,6 @@ PS_INPUT VSMain(VS_INPUT input)
     output.worldTangent = normalize(mul(input.tangent, normalMat));
 
     output.texCoord = input.texCoord;
-    output.color = input.color;
 
     return output;
 }
@@ -82,9 +81,7 @@ float4 PSMain(PS_INPUT input) : SV_TARGET
     float3 lightingRGB = ambientColor.rgb + diffuseFactor * lightColor.rgb;
 
     // 最终颜色：纹理 × 顶点色 × 光照 × 对象tint
-    float4 finalColor = baseColor * input.color * float4(lightingRGB, 1.0f) * tintColor;
+    float4 finalColor = baseColor * float4(lightingRGB, 1.0f) * tintColor;
 
-    //return finalColor;
-    
-    return input.color * float4(lightingRGB, 1.0f) * tintColor;
+    return finalColor;
 }

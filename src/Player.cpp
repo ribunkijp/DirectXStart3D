@@ -54,7 +54,7 @@ bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context, const std:
         std::ifstream materialFile(materialFullPath);
         if (!materialFile.is_open()) {
             MessageBoxW(nullptr, L"load materialFullPath 失敗", L"Error", MB_OK);
-            continue;
+            return false;
         }
         nlohmann::json materialJson;
         materialFile >> materialJson;
@@ -77,6 +77,7 @@ bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context, const std:
             if (FAILED(hr))
             {
                 MessageBoxW(nullptr, L"texture load 失敗", L"Error", MB_OK);
+                return false;
             }
         }
         m_materials.push_back(std::move(newMaterial));
@@ -92,6 +93,7 @@ bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context, const std:
         std::ifstream meshFile(meshFullPath, std::ios::binary);
         if (!meshFile.is_open()) {
             MessageBoxW(nullptr, L"load mesh 失敗", L"Error", MB_OK);
+            return false;
         }
 
         MeshHeader header;
@@ -111,6 +113,80 @@ bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context, const std:
         if (!newMesh.vertexBuffer || !newMesh.indexBuffer) return false;
 
         m_meshes.push_back(std::move(newMesh));
+    }
+
+    // load skeleton
+    m_skeleton.bones.clear();
+    std::string skeletonPath = basePath + "/skeleton.json";
+    std::ifstream skeletonFile(skeletonPath);
+    if (!skeletonFile.is_open()) {
+        MessageBoxW(nullptr, L"skeleton load 失敗", L"Error", MB_OK);
+        return false;
+    }
+    nlohmann::json skeletonJson;
+    skeletonFile >> skeletonJson;
+    skeletonFile.close();
+
+    for (const auto& boneNode : skeletonJson["bones"])
+    {
+        Bone newBone;
+        newBone.name = boneNode["name"];
+        newBone.parentIndex = boneNode["parentId"];
+
+        std::vector<float> mat_values = boneNode["offset"];
+        if (mat_values.size() == 16) {
+            memcpy(&newBone.offsetMatrix, mat_values.data(), sizeof(float) * 16);// memcpy(target, source, size)直接复制内存块
+        }
+        m_skeleton.bones.push_back(newBone);
+    }
+
+    
+
+    // load anim
+    m_animations.clear();
+    int animCount = sceneJson.value("animation_count", 0);// 默认为0
+    for (int i = 0; i < animCount; ++i)
+    {
+        std::string animFilename = "anim_" + std::to_string(i) + ".anim";
+        std::string animFullPath = basePath + "/" + animFilename;
+
+        std::ifstream animFile(animFullPath);
+        if (!animFile.is_open()) {
+            MessageBoxW(nullptr, L"anim load 失敗", L"Error", MB_OK);
+            return false;
+        }
+
+        nlohmann::json animJson;
+        animFile >> animJson;
+        animFile.close();
+
+        AnimationClip newClip;
+        newClip.name = animJson["name"];
+        newClip.duration = animJson["duration"];
+        newClip.ticksPerSecond = animJson["ticksPerSecond"];
+
+        for (const auto& channelNode : animJson["channels"])
+        {
+            BoneAnimation newChannel;
+            newChannel.boneName = channelNode["bone"];
+            size_t keyCount = channelNode["posKeys"].size();
+            newChannel.keyframes.resize(keyCount);
+
+            for (size_t k = 0; k < keyCount; ++k)
+            {
+                auto& key = newChannel.keyframes[k];
+                const auto& posKey = channelNode["posKeys"][k];
+                const auto& rotKey = channelNode["rotKeys"][k];
+                const auto& scaleKey = channelNode["scaleKeys"][k];
+
+                key.timeStamp = posKey["t"];
+                key.translation = { posKey["x"], posKey["y"], posKey["z"] };
+                key.rotationQuaternion = { rotKey["x"], rotKey["y"], rotKey["z"], rotKey["w"] };
+                key.scale = { scaleKey["x"], scaleKey["y"], scaleKey["z"] };
+            }
+            newClip.channels.push_back(newChannel);
+        }
+        m_animations.push_back(newClip);
     }
 
     return true;
@@ -228,8 +304,6 @@ std::wstring ConvertUtf8ToWstring(const std::string& str)
         return std::wstring();
     }
 
-    // 第一步：调用 MultiByteToWideChar 计算转换后的字符串需要多大的缓冲区。
-    // 我们传入 NULL 作为输出缓冲区，函数会返回所需的字符数。
     int required_size = MultiByteToWideChar(
         CP_UTF8,       // 源字符串是UTF-8编码
         0,             // 默认标志
@@ -239,15 +313,12 @@ std::wstring ConvertUtf8ToWstring(const std::string& str)
         0              // 输出缓冲区大小，这里为0
     );
 
-    // 如果计算失败，返回空字符串
     if (required_size == 0) {
         return std::wstring();
     }
 
-    // 第二步：创建一个足够大的 wstring 来接收转换后的数据。
     std::wstring wstr(required_size, 0);
 
-    // 第三步：再次调用 MultiByteToWideChar，这次执行真正的转换。
     MultiByteToWideChar(
         CP_UTF8,
         0,
@@ -258,4 +329,86 @@ std::wstring ConvertUtf8ToWstring(const std::string& str)
     );
 
     return wstr;
+}
+
+void Player::PlayAnimation(const std::string& clipName)
+{
+    for (int i = 0; i < m_animations.size(); ++i)
+    {
+        if (m_animations[i].name == clipName)
+        {
+            if (i != m_currentAnimationClipIndex)
+            {
+                m_currentAnimationClipIndex = i;
+                m_animationTime = 0.0f;
+            }
+            return;
+        }
+    }
+}
+
+void Player::UpdateAnimation(float deltaTime)
+{
+    if (m_currentAnimationClipIndex < 0 || m_currentAnimationClipIndex >= m_animations.size()) {
+        return;
+    }
+
+    const auto& clip = m_animations[m_currentAnimationClipIndex];
+
+    m_animationTime += clip.ticksPerSecond * deltaTime;
+    if (m_animationTime > clip.duration) {
+        m_animationTime = fmod(m_animationTime, clip.duration);
+    }
+
+    // 骨骼局部变换
+    std::vector<DirectX::XMFLOAT4X4> localBoneTransforms(m_skeleton.bones.size()); 
+    for (const auto& channel : clip.channels)
+    {
+        int boneIndex = -1;
+        for (int i = 0; i < m_skeleton.bones.size(); ++i) {
+            if (m_skeleton.bones[i].name == channel.boneName) {
+                boneIndex = i;
+                break;
+            }
+        }
+        if (boneIndex == -1) continue;
+
+      
+        DirectX::XMVECTOR S, R, T;
+        // 默认第一帧
+        const auto& firstFrame = channel.keyframes[0];
+        T = DirectX::XMLoadFloat3(&firstFrame.translation);
+        R = DirectX::XMLoadFloat4(&firstFrame.rotationQuaternion);
+        S = DirectX::XMLoadFloat3(&firstFrame.scale);
+
+        DirectX::XMMATRIX localTransform = DirectX::XMMatrixScalingFromVector(S) *
+            DirectX::XMMatrixRotationQuaternion(R) *
+            DirectX::XMMatrixTranslationFromVector(T);
+
+        DirectX::XMStoreFloat4x4(&localBoneTransforms[boneIndex], localTransform);
+    }
+
+    // 全局变换(父骨骼继承变换）
+    std::vector<DirectX::XMFLOAT4X4> globalBoneTransforms(m_skeleton.bones.size());
+    for (int i = 0; i < m_skeleton.bones.size(); ++i)
+    {
+        DirectX::XMMATRIX local = DirectX::XMLoadFloat4x4(&localBoneTransforms[i]);
+        int parentIndex = m_skeleton.bones[i].parentIndex;
+        if (parentIndex == -1) { // 根骨骼
+            DirectX::XMStoreFloat4x4(&globalBoneTransforms[i], local);
+        }
+        else {
+            DirectX::XMMATRIX parentGlobal = DirectX::XMLoadFloat4x4(&globalBoneTransforms[parentIndex]);
+            DirectX::XMStoreFloat4x4(&globalBoneTransforms[i], local * parentGlobal);
+        }
+    }
+
+    // 发送给GPU的矩阵 (乘以OffsetMatrix)
+    m_finalBoneMatrices.resize(m_skeleton.bones.size());
+    for (int i = 0; i < m_skeleton.bones.size(); ++i)
+    {
+        DirectX::XMMATRIX offset = DirectX::XMLoadFloat4x4(&m_skeleton.bones[i].offsetMatrix);
+        DirectX::XMMATRIX global = DirectX::XMLoadFloat4x4(&globalBoneTransforms[i]);
+        DirectX::XMStoreFloat4x4(&m_finalBoneMatrices[i], offset * global);
+    }
 }

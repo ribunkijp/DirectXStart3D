@@ -57,10 +57,10 @@ struct AnimationClip // 完整动画
 	std::vector<BoneAnimation> channels;
 };
 
-const int MAX_BONES = 128;
+
 struct SkinningCB
 {
-	DirectX::XMFLOAT4X4 boneTransforms[MAX_BONES];
+	DirectX::XMFLOAT4X4 boneTransforms[128];
 };
 
 

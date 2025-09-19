@@ -190,6 +190,16 @@ bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context, const std:
         m_animations.push_back(newClip);
     }
 
+    if (!m_skeleton.bones.empty())
+    {
+        m_finalBoneMatrices.resize(m_skeleton.bones.size());
+        for (size_t i = 0; i < m_skeleton.bones.size(); ++i)
+        {
+            DirectX::XMStoreFloat4x4(&m_finalBoneMatrices[i], DirectX::XMMatrixIdentity());
+        }
+    }
+
+
     return true;
 }
 
@@ -422,7 +432,7 @@ void Player::UpdateAnimation(float deltaTime)
         }
     }
 
-    // 发送给GPU的矩阵 (乘以OffsetMatrix)
+    // 发送给GPU的矩阵
     m_finalBoneMatrices.resize(m_skeleton.bones.size());
     for (int i = 0; i < m_skeleton.bones.size(); ++i)
     {

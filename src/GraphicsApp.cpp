@@ -380,7 +380,7 @@ bool GraphicsApp::Initialize(HWND hwnd) {
     };
     hr = m_device->CreateInputLayout(
         playerLayout,
-        ARRAYSIZE(layout),
+        ARRAYSIZE(playerLayout),
         playerVSBlob->GetBufferPointer(),
         playerVSBlob->GetBufferSize(),
         m_playerInputLayout.GetAddressOf()// 输出：IA 阶段的 InputLayout 对象

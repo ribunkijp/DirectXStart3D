@@ -814,6 +814,9 @@ void GraphicsApp::Render() {
         m_ground->Render(m_context.Get(), m_camera->GetViewMatrix(), DirectX::XMLoadFloat4x4(&m_projection), DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
     }
 
+    m_context->IASetInputLayout(m_playerInputLayout.Get());
+    m_context->VSSetShader(m_playerVS.Get(), nullptr, 0);
+    m_context->PSSetShader(m_playerPS.Get(), nullptr, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_player->Render(m_context.Get(), m_camera->GetViewMatrix(), XMLoadFloat4x4(&m_projection), DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
 

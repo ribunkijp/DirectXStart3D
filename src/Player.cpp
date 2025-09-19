@@ -287,6 +287,9 @@ void Player::Update(float deltaTime)
     DirectX::XMVECTOR posVec = DirectX::XMLoadFloat3(&m_position);
     posVec = DirectX::XMVectorAdd(posVec, DirectX::XMVectorScale(currentVel, deltaTime));
     DirectX::XMStoreFloat3(&m_position, posVec);
+
+
+    UpdateAnimation(deltaTime);
 }
 
 DirectX::XMFLOAT3 Player::GetVelocity() const {

@@ -305,10 +305,72 @@ bool GraphicsApp::Initialize(HWND hwnd) {
         return false;
     }
 
-
-
     // inputlayout
     D3D11_INPUT_ELEMENT_DESC layout[] = {
+      { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+      { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+      { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+      { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+      { "TANGENT",  0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+    };
+    hr = m_device->CreateInputLayout(
+        layout,
+        ARRAYSIZE(layout),
+        vsBlob->GetBufferPointer(),
+        vsBlob->GetBufferSize(),
+        m_inputLayout.GetAddressOf()// 输出：IA 阶段的 InputLayout 对象
+    );
+    if (FAILED(hr)) return false;
+
+
+
+    Microsoft::WRL::ComPtr<ID3DBlob> playerVSBlob, playerPSBlob, playerErrorBlob;
+    hr = D3DCompileFromFile(
+        L"shaders/player.hlsl",    // HLSL 源文件路径
+        nullptr, nullptr,          // 宏定义、包含处理器
+        "VSMain", "vs_5_0",        // 函数入口 = VSMain，目标 profile = vs_5_0
+        D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG, // 严格检查 + Debug 信息
+        0,
+        &playerVSBlob,                   // 输出：编译好的字节码
+        &playerErrorBlob                 // 输出：错误信息
+    );
+
+    if (FAILED(hr)) {
+        return false;
+    }
+    hr = D3DCompileFromFile(
+        L"shaders/player.hlsl",
+        nullptr,
+        nullptr,
+        "PSMain", "ps_5_0",// 函数入口 = PSMain，目标 profile = ps_5_0
+        D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG,
+        0,
+        &playerPSBlob,
+        &playerErrorBlob
+    );
+    if (FAILED(hr)) {
+        return false;
+    }
+    hr = m_device->CreateVertexShader(// 创建顶点着色器对象
+        playerVSBlob->GetBufferPointer(),
+        playerVSBlob->GetBufferSize(),
+        nullptr,
+        m_playerVS.GetAddressOf()
+    );
+    if (FAILED(hr)) {
+        return false;
+    }
+    hr = m_device->CreatePixelShader(// 创建像素着色器对象
+        playerPSBlob->GetBufferPointer(),
+        playerPSBlob->GetBufferSize(),
+        nullptr,
+        m_playerPS.GetAddressOf()
+    );
+    if (FAILED(hr)) {
+        return false;
+    }
+    // player inputlayout
+    D3D11_INPUT_ELEMENT_DESC playerLayout[] = {
       { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
       { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
       { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -317,11 +379,11 @@ bool GraphicsApp::Initialize(HWND hwnd) {
       { "WEIGHTS",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
     };
     hr = m_device->CreateInputLayout(
-        layout,
+        playerLayout,
         ARRAYSIZE(layout),
-        vsBlob->GetBufferPointer(),
-        vsBlob->GetBufferSize(),
-        m_inputLayout.GetAddressOf()// 输出：IA 阶段的 InputLayout 对象
+        playerVSBlob->GetBufferPointer(),
+        playerVSBlob->GetBufferSize(),
+        m_playerInputLayout.GetAddressOf()// 输出：IA 阶段的 InputLayout 对象
     );
     if (FAILED(hr)) return false;
 
@@ -422,15 +484,15 @@ bool GraphicsApp::Initialize(HWND hwnd) {
 
 
     // present 
-    Microsoft::WRL::ComPtr<ID3DBlob> vstBlob_Present, psBlob_Present, errorBlob_Present;
+    Microsoft::WRL::ComPtr<ID3DBlob> presentVSBlob, presentPSBlob, presentErrorBlob;
     hr = D3DCompileFromFile(
         L"shaders/present.hlsl",
         nullptr, nullptr,
         "VSQuad", "vs_5_0",
         D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG,
         0,
-        &vstBlob_Present,
-        &errorBlob_Present
+        &presentVSBlob,
+        &presentErrorBlob
     );
     if (FAILED(hr)) {
         return false;
@@ -441,19 +503,19 @@ bool GraphicsApp::Initialize(HWND hwnd) {
         "PSPresent", "ps_5_0",
         D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG,
         0,
-        &psBlob_Present,
-        &errorBlob_Present
+        &presentPSBlob,
+        &presentErrorBlob
     );
     if (FAILED(hr)) {
         return false;
     }
 
-    hr = m_device->CreateVertexShader(vstBlob_Present->GetBufferPointer(), vstBlob_Present->GetBufferSize(), nullptr, m_presentVS.GetAddressOf());
+    hr = m_device->CreateVertexShader(presentVSBlob->GetBufferPointer(), presentVSBlob->GetBufferSize(), nullptr, m_presentVS.GetAddressOf());
     if (FAILED(hr)) {
         MessageBoxW(m_hwnd, L"Failed to create present VS.", L"Error", MB_OK);
         return false;
     }
-    hr = m_device->CreatePixelShader(psBlob_Present->GetBufferPointer(), psBlob_Present->GetBufferSize(), nullptr, m_presentPS.GetAddressOf());
+    hr = m_device->CreatePixelShader(presentPSBlob->GetBufferPointer(), presentPSBlob->GetBufferSize(), nullptr, m_presentPS.GetAddressOf());
     if (FAILED(hr)) {
         MessageBoxW(m_hwnd, L"Failed to create present PS.", L"Error", MB_OK);
         return false;
@@ -482,8 +544,8 @@ bool GraphicsApp::Initialize(HWND hwnd) {
     hr = m_device->CreateInputLayout(
         presentLayout,
         ARRAYSIZE(presentLayout),
-        vstBlob_Present->GetBufferPointer(), 
-        vstBlob_Present->GetBufferSize(),
+        presentVSBlob->GetBufferPointer(),
+        presentVSBlob->GetBufferSize(),
         m_presentInputLayout.GetAddressOf()
     );
     if (FAILED(hr)) {

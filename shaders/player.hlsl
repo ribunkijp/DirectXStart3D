@@ -1,11 +1,11 @@
 /**********************************************************************************
- * shader.hlsl
+ * player.hlsl
  *
  *
  *
  *
  * LI WENHUI
- * 2025/09/10
+ * 2025/09/19
  **********************************************************************************/
 
 // 常量缓冲（b0）
@@ -22,7 +22,7 @@ cbuffer PerObjectCB : register(b0)
 cbuffer PerFrameCB : register(b1)
 {
     float3 lightDirWS;
-    float _pad0; 
+    float _pad0;
     float4 ambientColor; // 环境光颜色/强度
     float4 lightColor; // 主光颜色/强度
 };
@@ -33,16 +33,16 @@ SamplerState defaultSampler : register(s0);
 struct VS_INPUT
 {
     float3 position : POSITION;
-    float4 color : COLOR;
     float2 texCoord : TEXCOORD;
     float3 normal : NORMAL;
     float3 tangent : TANGENT;
+    int4 boneIDs : BONEIDS;
+    float4 weights : WEIGHTS;
 };
 
 struct PS_INPUT
 {
     float4 position : SV_POSITION;
-    float4 color : COLOR;
     float2 texCoord : TEXCOORD;
     float3 worldNormal : NORMAL;
     float3 worldTangent : TANGENT;
@@ -53,7 +53,7 @@ PS_INPUT VSMain(VS_INPUT input)
     PS_INPUT output;
 
     // 计算裁剪空间位置
-    float4 localPos = float4(input.position, 1.0f);//扩展成float4齐次坐标
+    float4 localPos = float4(input.position, 1.0f); //扩展成float4齐次坐标
     float4x4 worldViewProj = mul(mul(world, view), projection); //世界、观察、投影三个矩阵预乘，得到WVP复合矩阵
     output.position = mul(localPos, worldViewProj);
 
@@ -62,7 +62,6 @@ PS_INPUT VSMain(VS_INPUT input)
     output.worldNormal = normalize(mul(input.normal, normalMat));
     output.worldTangent = normalize(mul(input.tangent, normalMat));
 
-    output.color = input.color;
     output.texCoord = input.texCoord;
 
     return output;
@@ -82,7 +81,7 @@ float4 PSMain(PS_INPUT input) : SV_TARGET
     float3 lightingRGB = ambientColor.rgb + diffuseFactor * lightColor.rgb;
 
     // 最终颜色：纹理 × 顶点色 × 光照 × 对象tint
-    float4 finalColor = baseColor * input.color * float4(lightingRGB, 1.0f) * tintColor;
+    float4 finalColor = baseColor * float4(lightingRGB, 1.0f) * tintColor;
 
     return finalColor;
 }

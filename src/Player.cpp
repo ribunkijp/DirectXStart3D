@@ -34,6 +34,7 @@ bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context, const std:
     m_materials.clear();
 
     m_constantBuffer = BufferUtils::CreateConstantBuffer(device, sizeof(PerObjectCB));
+    m_skinningConstantBuffer = BufferUtils::CreateConstantBuffer(device, sizeof(SkinningCB));
 
     std::string scenePath = basePath + "/scene.json";
     std::ifstream sceneFile(scenePath);
@@ -245,6 +246,21 @@ void Player::UpdateConstantBuffer(ID3D11DeviceContext* context,
     ID3D11Buffer* b0[] = { m_constantBuffer.Get() };
     context->VSSetConstantBuffers(0, 1, b0);
     context->PSSetConstantBuffers(0, 1, b0);
+
+
+
+    if (!m_finalBoneMatrices.empty())
+    {
+        D3D11_MAPPED_SUBRESOURCE mappedSkinning;
+        if (SUCCEEDED(context->Map(m_skinningConstantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSkinning)))
+        {
+            memcpy(mappedSkinning.pData, m_finalBoneMatrices.data(), m_finalBoneMatrices.size() * sizeof(DirectX::XMFLOAT4X4));
+            context->Unmap(m_skinningConstantBuffer.Get(), 0);
+        }
+
+        ID3D11Buffer* b2[] = { m_skinningConstantBuffer.Get() };
+        context->VSSetConstantBuffers(2, 1, b2);
+    }
 }
 
 void Player::SetRotationY(float yaw)

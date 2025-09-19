@@ -57,6 +57,13 @@ struct AnimationClip // 完整动画
 	std::vector<BoneAnimation> channels;
 };
 
+const int MAX_BONES = 128;
+struct SkinningCB
+{
+	DirectX::XMFLOAT4X4 boneTransforms[MAX_BONES];
+};
+
+
 
 class Player {
 public:
@@ -105,6 +112,7 @@ private:
 	DirectX::XMFLOAT3 m_scale{ 1.0f, 1.0f, 1.0f };
 
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_constantBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_skinningConstantBuffer;
 
 	DirectX::XMFLOAT3 m_velocity = { 0.0f, 0.0f, 0.0f };
 	DirectX::XMFLOAT3 m_targetVelocity = { 0.0f, 0.0f, 0.0f };

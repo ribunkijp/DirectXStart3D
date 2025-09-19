@@ -7,7 +7,7 @@
  * LI WENHUI
  * 2025/09/19
  **********************************************************************************/
-
+#pragma pack_matrix(row_major)
 // 常量缓冲（b0）
 cbuffer PerObjectCB : register(b0)
 {
@@ -66,6 +66,7 @@ PS_INPUT VSMain(VS_INPUT input)
     float3 finalNormal = float3(0, 0, 0);
     float3 finalTangent = float3(0, 0, 0);
     
+    float totalWeight = 0.0f;
     for (int i = 0; i < 4; ++i) // 一个顶点最多受到4根骨骼的影响
     {
         if (input.boneIDs[i] >= 0 && input.weights[i] > 0.0)
@@ -76,17 +77,24 @@ PS_INPUT VSMain(VS_INPUT input)
             finalPos += mul(localPos, boneTransform) * weight;
             finalNormal += mul(localNormal, (float3x3) boneTransform) * weight;
             finalTangent += mul(localTangent, (float3x3) boneTransform) * weight;
+            
+            totalWeight += weight;
         }
     }
-    
+    if (totalWeight < 0.001f)
+    {
+        finalPos = localPos;
+        finalNormal = localNormal;
+        finalTangent = localTangent;
+    }
     
     float4x4 worldViewProj = mul(mul(world, view), projection); //世界、观察、投影三个矩阵预乘，得到WVP复合矩阵
     output.position = mul(finalPos, worldViewProj);
 
     // 用 worldIT 的上3x3来变换法线/切线（支持非均匀缩放/镜像）
     float3x3 normalMat = (float3x3) worldIT;
-    output.worldNormal = normalize(mul(finalNormal, normalMat));
-    output.worldTangent = normalize(mul(finalTangent, normalMat));
+    output.worldNormal = normalize(mul(normalize(finalNormal), normalMat));
+    output.worldTangent = normalize(mul(normalize(finalTangent), normalMat));
 
     output.texCoord = input.texCoord;
 

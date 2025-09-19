@@ -244,9 +244,9 @@ void Player::UpdateConstantBuffer(ID3D11DeviceContext* context,
     {
         auto* cb = reinterpret_cast<PerObjectCB*>(mappedResource.pData);
 
-        DirectX::XMStoreFloat4x4(&cb->world, DirectX::XMMatrixTranspose(worldMatrix));
-        DirectX::XMStoreFloat4x4(&cb->view, DirectX::XMMatrixTranspose(view));
-        DirectX::XMStoreFloat4x4(&cb->projection, DirectX::XMMatrixTranspose(projection));
+        DirectX::XMStoreFloat4x4(&cb->world, worldMatrix);
+        DirectX::XMStoreFloat4x4(&cb->view, view);
+        DirectX::XMStoreFloat4x4(&cb->projection, projection);
         DirectX::XMStoreFloat4x4(&cb->worldIT, worldIT);
         cb->tintColor = tintColor;
        
@@ -376,6 +376,16 @@ void Player::PlayAnimation(const std::string& clipName)
     }
 }
 
+int FindKeyframeIndexBefore(float animationTime, const std::vector<Keyframe>& keyframes)
+{
+    for (int i = (int)keyframes.size() - 1; i >= 0; --i) {
+        if (keyframes[i].timeStamp <= animationTime) {
+            return i;
+        }
+    }
+    return (int)keyframes.size() - 1;
+}
+
 void Player::UpdateAnimation(float deltaTime)
 {
     if (m_currentAnimationClipIndex < 0 || m_currentAnimationClipIndex >= m_animations.size()) {
@@ -390,7 +400,10 @@ void Player::UpdateAnimation(float deltaTime)
     }
 
     // 骨骼局部变换
-    std::vector<DirectX::XMFLOAT4X4> localBoneTransforms(m_skeleton.bones.size()); 
+    std::vector<DirectX::XMMATRIX>  localTransforms(m_skeleton.bones.size());
+    for (size_t i = 0; i < m_skeleton.bones.size(); ++i) {
+        localTransforms[i] = DirectX::XMMatrixIdentity();
+    }
     for (const auto& channel : clip.channels)
     {
         int boneIndex = -1;
@@ -400,35 +413,63 @@ void Player::UpdateAnimation(float deltaTime)
                 break;
             }
         }
-        if (boneIndex == -1) continue;
+        if (boneIndex == -1 || channel.keyframes.empty()) continue;
 
       
         DirectX::XMVECTOR S, R, T;
-        // 默认第一帧
-        const auto& firstFrame = channel.keyframes[0];
-        T = DirectX::XMLoadFloat3(&firstFrame.translation);
-        R = DirectX::XMLoadFloat4(&firstFrame.rotationQuaternion);
-        S = DirectX::XMLoadFloat3(&firstFrame.scale);
-
+        if (channel.keyframes.size() == 1) {
+            // 默认第一帧
+            const auto& firstFrame = channel.keyframes[0];
+            T = DirectX::XMLoadFloat3(&firstFrame.translation);
+            R = DirectX::XMLoadFloat4(&firstFrame.rotationQuaternion);
+            S = DirectX::XMLoadFloat3(&firstFrame.scale);
+        }
+        else {
+            int idx0 = FindKeyframeIndexBefore(m_animationTime, channel.keyframes);
+            int idx1 = (idx0 + 1) % channel.keyframes.size();
+            const auto& key0 = channel.keyframes[idx0];
+            const auto& key1 = channel.keyframes[idx1];
+            float deltaTimeKeys = key1.timeStamp - key0.timeStamp;
+            if (deltaTimeKeys < 0.0f) deltaTimeKeys += clip.duration;
+            float factor = 0.0f;
+            if (deltaTimeKeys > 1e-6f) {
+                float progress = m_animationTime - key0.timeStamp;
+                if (progress < 0.0f) progress += clip.duration;
+                factor = progress / deltaTimeKeys;
+            }
+            factor = std::clamp(factor, 0.0f, 1.0f);
+            T = DirectX::XMVectorLerp(DirectX::XMLoadFloat3(&key0.translation), DirectX::XMLoadFloat3(&key1.translation), factor);
+            R = DirectX::XMQuaternionSlerp(DirectX::XMLoadFloat4(&key0.rotationQuaternion), DirectX::XMLoadFloat4(&key1.rotationQuaternion), factor);
+            S = DirectX::XMVectorLerp(DirectX::XMLoadFloat3(&key0.scale), DirectX::XMLoadFloat3(&key1.scale), factor);
+        }
+        R = DirectX::XMQuaternionNormalize(R);
         DirectX::XMMATRIX localTransform = DirectX::XMMatrixScalingFromVector(S) *
             DirectX::XMMatrixRotationQuaternion(R) *
             DirectX::XMMatrixTranslationFromVector(T);
 
-        DirectX::XMStoreFloat4x4(&localBoneTransforms[boneIndex], localTransform);
+        localTransforms[boneIndex] = localTransform;
+
     }
 
     // 全局变换(父骨骼继承变换）
-    std::vector<DirectX::XMFLOAT4X4> globalBoneTransforms(m_skeleton.bones.size());
+    std::vector<DirectX::XMMATRIX> globalTransforms(m_skeleton.bones.size());
     for (int i = 0; i < m_skeleton.bones.size(); ++i)
     {
-        DirectX::XMMATRIX local = DirectX::XMLoadFloat4x4(&localBoneTransforms[i]);
+        //DirectX::XMMATRIX local = DirectX::XMLoadFloat4x4(&localBoneTransforms[i]);
+        //int parentIndex = m_skeleton.bones[i].parentIndex;
+        //if (parentIndex == -1) { // 根骨骼
+        //    DirectX::XMStoreFloat4x4(&globalBoneTransforms[i], local);
+        //}
+        //else {
+        //    DirectX::XMMATRIX parentGlobal = DirectX::XMLoadFloat4x4(&globalBoneTransforms[parentIndex]);
+        //    DirectX::XMStoreFloat4x4(&globalBoneTransforms[i], local * parentGlobal);
+        //}
         int parentIndex = m_skeleton.bones[i].parentIndex;
-        if (parentIndex == -1) { // 根骨骼
-            DirectX::XMStoreFloat4x4(&globalBoneTransforms[i], local);
+        if (parentIndex == -1) {
+            globalTransforms[i] = localTransforms[i];
         }
         else {
-            DirectX::XMMATRIX parentGlobal = DirectX::XMLoadFloat4x4(&globalBoneTransforms[parentIndex]);
-            DirectX::XMStoreFloat4x4(&globalBoneTransforms[i], local * parentGlobal);
+            globalTransforms[i] = localTransforms[i] * globalTransforms[parentIndex];
         }
     }
 
@@ -437,7 +478,6 @@ void Player::UpdateAnimation(float deltaTime)
     for (int i = 0; i < m_skeleton.bones.size(); ++i)
     {
         DirectX::XMMATRIX offset = DirectX::XMLoadFloat4x4(&m_skeleton.bones[i].offsetMatrix);
-        DirectX::XMMATRIX global = DirectX::XMLoadFloat4x4(&globalBoneTransforms[i]);
-        DirectX::XMStoreFloat4x4(&m_finalBoneMatrices[i], offset * global);
+        DirectX::XMStoreFloat4x4(&m_finalBoneMatrices[i], offset * globalTransforms[i]);
     }
 }

@@ -389,6 +389,8 @@ bool GraphicsApp::Initialize(HWND hwnd) {
 
 
 
+
+
     D3D11_SAMPLER_DESC sampDesc = {};
     sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;//双线性插值，更柔和但会糊
     sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;//平铺重复时用 WRAP

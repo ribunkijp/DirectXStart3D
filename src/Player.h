@@ -95,6 +95,7 @@ private:
 		const DirectX::XMMATRIX& projection,
 		const DirectX::XMFLOAT4& tintColor);
 	void UpdateAnimation(float deltaTime);
+	int FindKeyframeIndexBefore(float animationTime, const std::vector<Keyframe>& keyframes);
 
 private:
 	std::vector<Mesh> m_meshes;

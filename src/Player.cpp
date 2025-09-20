@@ -376,7 +376,7 @@ void Player::PlayAnimation(const std::string& clipName)
     }
 }
 
-int FindKeyframeIndexBefore(float animationTime, const std::vector<Keyframe>& keyframes)
+int Player::FindKeyframeIndexBefore(float animationTime, const std::vector<Keyframe>& keyframes)
 {
     for (int i = (int)keyframes.size() - 1; i >= 0; --i) {
         if (keyframes[i].timeStamp <= animationTime) {
@@ -438,11 +438,11 @@ void Player::UpdateAnimation(float deltaTime)
                 factor = progress / deltaTimeKeys;
             }
             factor = std::clamp(factor, 0.0f, 1.0f);
-            T = DirectX::XMVectorLerp(DirectX::XMLoadFloat3(&key0.translation), DirectX::XMLoadFloat3(&key1.translation), factor);
+            T = DirectX::XMVectorLerp(DirectX::XMLoadFloat3(&key0.translation), DirectX::XMLoadFloat3(&key1.translation), factor);// (1.0 - t) * V0 + t * V1
             R = DirectX::XMQuaternionSlerp(DirectX::XMLoadFloat4(&key0.rotationQuaternion), DirectX::XMLoadFloat4(&key1.rotationQuaternion), factor);
             S = DirectX::XMVectorLerp(DirectX::XMLoadFloat3(&key0.scale), DirectX::XMLoadFloat3(&key1.scale), factor);
         }
-        R = DirectX::XMQuaternionNormalize(R);
+        R = DirectX::XMQuaternionNormalize(R);// 消除浮点数累积误差
         DirectX::XMMATRIX localTransform = DirectX::XMMatrixScalingFromVector(S) *
             DirectX::XMMatrixRotationQuaternion(R) *
             DirectX::XMMatrixTranslationFromVector(T);

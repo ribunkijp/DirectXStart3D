@@ -58,7 +58,7 @@ PS_INPUT VSMain(VS_INPUT input)
     PS_INPUT output;
 
     // 计算裁剪空间位置
-    float4 localPos = float4(input.position, 1.0f); //扩展成float4齐次坐标
+    float4 localPos = float4(input.position, 1.0f); // 从顶点缓冲区读取顶点的原始位置,扩展成float4齐次坐标
     float3 localNormal = input.normal;
     float3 localTangent = input.tangent;
     

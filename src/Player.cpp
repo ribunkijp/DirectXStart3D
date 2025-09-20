@@ -455,15 +455,6 @@ void Player::UpdateAnimation(float deltaTime)
     std::vector<DirectX::XMMATRIX> globalTransforms(m_skeleton.bones.size());
     for (int i = 0; i < m_skeleton.bones.size(); ++i)
     {
-        //DirectX::XMMATRIX local = DirectX::XMLoadFloat4x4(&localBoneTransforms[i]);
-        //int parentIndex = m_skeleton.bones[i].parentIndex;
-        //if (parentIndex == -1) { // 根骨骼
-        //    DirectX::XMStoreFloat4x4(&globalBoneTransforms[i], local);
-        //}
-        //else {
-        //    DirectX::XMMATRIX parentGlobal = DirectX::XMLoadFloat4x4(&globalBoneTransforms[parentIndex]);
-        //    DirectX::XMStoreFloat4x4(&globalBoneTransforms[i], local * parentGlobal);
-        //}
         int parentIndex = m_skeleton.bones[i].parentIndex;
         if (parentIndex == -1) {
             globalTransforms[i] = localTransforms[i];

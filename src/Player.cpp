@@ -234,8 +234,11 @@ void Player::UpdateConstantBuffer(ID3D11DeviceContext* context,
 {
     DirectX::XMMATRIX scaleMat = DirectX::XMMatrixScalingFromVector(XMLoadFloat3(&m_scale));
     DirectX::XMMATRIX rotMat = DirectX::XMMatrixRotationRollPitchYawFromVector(XMLoadFloat3(&m_rotation));
+    DirectX::XMMATRIX modelCorrectionMat = DirectX::XMMatrixRotationY(DirectX::XM_PI);
+    DirectX::XMMATRIX finalRotMat = modelCorrectionMat * rotMat;
     DirectX::XMMATRIX transMat = DirectX::XMMatrixTranslationFromVector(XMLoadFloat3(&m_position));
-    DirectX::XMMATRIX worldMatrix = scaleMat * rotMat * transMat;
+    
+    DirectX::XMMATRIX worldMatrix = scaleMat * finalRotMat * transMat;
 
     DirectX::XMMATRIX worldIT = XMMatrixTranspose(XMMatrixInverse(nullptr, worldMatrix));
 

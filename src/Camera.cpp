@@ -30,7 +30,7 @@ DirectX::XMMATRIX Camera::GetViewMatrix() const
 
 void Camera::Update(const DirectX::XMFLOAT3& targetPosition)
 {
-    const float baseDistance = 8.0f;  
+    const float baseDistance = 6.0f;  
     const float basePivotHeight = 1.5f;  
 
     constexpr float minPitchRadians = DirectX::XMConvertToRadians(-80.0f);

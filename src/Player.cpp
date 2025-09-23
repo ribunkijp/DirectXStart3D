@@ -285,10 +285,10 @@ void Player::Render(ID3D11DeviceContext* context, const DirectX::XMMATRIX& view,
       
 
         DirectX::XMMATRIX offM = m_sword->GetOffsetMatrix();
-        DirectX::XMMATRIX Cswap(
+        DirectX::XMMATRIX Cswap( // Y <-> Z
             1, 0, 0, 0,
-            0, 0, 1, 0,   // Y <- Z
-            0, 1, 0, 0,   // Z <- Y
+            0, 0, 1, 0,   
+            0, 1, 0, 0,   
             0, 0, 0, 1
         );
         offM = Cswap * offM * DirectX::XMMatrixInverse(nullptr, Cswap);

@@ -257,22 +257,41 @@ void Player::Render(ID3D11DeviceContext* context, const DirectX::XMMATRIX& view,
     if (m_sword && !m_globalTransforms.empty()) {
         DirectX::XMMATRIX scaleMat = DirectX::XMMatrixScalingFromVector(XMLoadFloat3(&m_scale));
         DirectX::XMMATRIX rotMat = DirectX::XMMatrixRotationRollPitchYawFromVector(XMLoadFloat3(&m_rotation));
+        DirectX::XMMATRIX modelCorrectionMat = DirectX::XMMatrixRotationY(DirectX::XM_PI);
+        DirectX::XMMATRIX finalRotMat = modelCorrectionMat * rotMat;
         DirectX::XMMATRIX transMat = DirectX::XMMatrixTranslationFromVector(XMLoadFloat3(&m_position));
-        DirectX::XMMATRIX playerWorldMatrix = scaleMat * rotMat * transMat;
+        DirectX::XMMATRIX playerWorldMatrix = scaleMat * finalRotMat * transMat;
 
-        DirectX::XMFLOAT4X4 storedHandMatrix = m_globalTransforms[42];
-        DirectX::XMMATRIX handModelMatrix = DirectX::XMLoadFloat4x4(&storedHandMatrix);
+        int handIdx = -1;
+        for (int i = 0; i < (int)m_skeleton.bones.size(); ++i) {
+            const std::string& n = m_skeleton.bones[i].name;
+            if (n.find("RightHand") != std::string::npos || n.find("mixamorig:RightHand") != std::string::npos) {
+                handIdx = i;
+                break;
+            }
+        }
         
+        DirectX::XMFLOAT4X4 storedHandMatrix = m_globalTransforms[handIdx];
+        DirectX::XMMATRIX handModelMatrix = DirectX::XMLoadFloat4x4(&storedHandMatrix);
+
         DirectX::XMVECTOR S_h, R_h, T_h;
         DirectX::XMMatrixDecompose(&S_h, &R_h, &T_h, handModelMatrix);
         DirectX::XMMATRIX handNoScale =
             DirectX::XMMatrixAffineTransformation(
-                DirectX::XMVectorSet(1.f, 1.f, 1.f, 0.f), // 统一缩放=1
+                DirectX::XMVectorSet(1.f, 1.f, 1.f, 0.f), 
                 DirectX::XMVectorZero(),
                 R_h, T_h);
 
-        // offset 也去缩放（保险起见）
+      
+
         DirectX::XMMATRIX offM = m_sword->GetOffsetMatrix();
+        DirectX::XMMATRIX Cswap(
+            1, 0, 0, 0,
+            0, 0, 1, 0,   // Y <- Z
+            0, 1, 0, 0,   // Z <- Y
+            0, 0, 0, 1
+        );
+        offM = Cswap * offM * DirectX::XMMatrixInverse(nullptr, Cswap);
         DirectX::XMVECTOR S_o, R_o, T_o;
         DirectX::XMMatrixDecompose(&S_o, &R_o, &T_o, offM);
         DirectX::XMMATRIX offNoScale =
@@ -283,10 +302,11 @@ void Player::Render(ID3D11DeviceContext* context, const DirectX::XMMATRIX& view,
 
         // 最终
         DirectX::XMMATRIX finalSwordMatrix = offNoScale * handNoScale * playerWorldMatrix;
-        //DirectX::XMMATRIX finalSwordMatrix = m_sword->GetOffsetMatrix() * handModelMatrix * playerWorldMatrix;
-    
+
         m_sword->Render(context, finalSwordMatrix, view, projection, tintColor);
+        
     }
+
     
 
     

@@ -47,6 +47,37 @@ bool Sword::Load(
     meshFile.read(reinterpret_cast<char*>(indices.data()), header.indexCount * sizeof(uint32_t));
     meshFile.close();
 
+    DirectX::XMFLOAT3 vmin(FLT_MAX, FLT_MAX, FLT_MAX);
+    DirectX::XMFLOAT3 vmax(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+    DirectX::XMFLOAT3 sum(0, 0, 0);
+
+    for (auto& v : vertices) {
+        vmin.x = std::min(vmin.x, v.position.x);
+        vmin.y = std::min(vmin.y, v.position.y);
+        vmin.z = std::min(vmin.z, v.position.z);
+        vmax.x = std::max(vmax.x, v.position.x);
+        vmax.y = std::max(vmax.y, v.position.y);
+        vmax.z = std::max(vmax.z, v.position.z);
+        sum.x += v.position.x;
+        sum.y += v.position.y;
+        sum.z += v.position.z;
+    }
+    const float invN = vertices.empty() ? 0.0f : (1.0f / vertices.size());
+    DirectX::XMFLOAT3 centroid(sum.x * invN, sum.y * invN, sum.z * invN);
+
+    // 写法 A：显式 4×4
+   /* m_offsetMatrix = DirectX::XMFLOAT4X4(
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        -centroid.x, -centroid.y, -centroid.z, 1);*/
+
+    // 方便你在 VS 输出窗口看
+    wchar_t buf[256];
+    swprintf(buf, 256, L"[Sword Mesh] AABB min(%.3f,%.3f,%.3f)  max(%.3f,%.3f,%.3f)  centroid(%.3f,%.3f,%.3f)\n",
+        vmin.x, vmin.y, vmin.z, vmax.x, vmax.y, vmax.z, centroid.x, centroid.y, centroid.z);
+    OutputDebugStringW(buf);
+
     
     m_indexCount = header.indexCount;
     m_vertexBuffer = BufferUtils::CreateStaticVertexBuffer(device, vertices.data(), vertices.size() * sizeof(modelVertex));
@@ -67,6 +98,7 @@ bool Sword::Load(
             m_offsetMatrix.m[i][j] = matrixData[i][j];
         }
     }
+
 
     m_constantBuffer = BufferUtils::CreateConstantBuffer(device, sizeof(PerObjectCB));
 

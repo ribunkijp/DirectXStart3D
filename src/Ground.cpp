@@ -76,10 +76,6 @@ void Ground::Render(ID3D11DeviceContext* context,
 
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
 
-    ID3D11Buffer* cb[] = { m_constantBuffer.Get() };
-    context->VSSetConstantBuffers(0, 1, cb);
-    context->PSSetConstantBuffers(0, 1, cb);
-
     context->DrawIndexed(m_indexCount, 0, 0);
 }
 
@@ -105,4 +101,8 @@ void Ground::UpdateConstantBuffer(ID3D11DeviceContext* context,
 
         context->Unmap(m_constantBuffer.Get(), 0);
     }
+
+    ID3D11Buffer* b0[] = { m_constantBuffer.Get() };
+    context->VSSetConstantBuffers(0, 1, b0);
+    context->PSSetConstantBuffers(0, 1, b0);
 }

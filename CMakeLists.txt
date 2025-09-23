@@ -18,6 +18,7 @@ set(SOURCES
   src/InputController.cpp
   src/Ground.cpp
   src/TextureLoader.cpp
+  src/Sword.cpp
 )
 
 set(HEADERS
@@ -32,6 +33,7 @@ set(HEADERS
   src/InputController.h
   src/Ground.h
   src/TextureLoader.h
+  src/Sword.h
 )
 
 add_executable(${PROJECT_NAME} WIN32 ${SOURCES})

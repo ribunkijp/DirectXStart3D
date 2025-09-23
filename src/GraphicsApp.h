@@ -48,10 +48,13 @@ private:
     Microsoft::WRL::ComPtr<ID3D11InputLayout> m_inputLayout;
     Microsoft::WRL::ComPtr<ID3D11InputLayout> m_presentInputLayout;
     Microsoft::WRL::ComPtr<ID3D11InputLayout> m_playerInputLayout;
+    Microsoft::WRL::ComPtr<ID3D11InputLayout> m_staticMeshInputLayout;
     Microsoft::WRL::ComPtr<ID3D11VertexShader> m_vertexShader;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> m_pixelShader;
     Microsoft::WRL::ComPtr<ID3D11VertexShader> m_playerVS;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> m_playerPS;
+    Microsoft::WRL::ComPtr<ID3D11VertexShader> m_staticMeshVS;
+    Microsoft::WRL::ComPtr<ID3D11PixelShader>  m_staticMeshPS;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> m_samplerState;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthStateDefault;
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_depthStencilStateTransparent;

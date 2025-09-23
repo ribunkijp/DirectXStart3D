@@ -13,6 +13,7 @@
 #include "BufferUtils.h"
 #include "nlohmann/json.hpp"
 #include "TextureLoader.h"
+#include "Sword.h"
 
 #include <fstream>
 #include <locale>
@@ -29,7 +30,14 @@ std::wstring ConvertUtf8ToWstring(const std::string& str);
 Player::Player() {}
 Player::~Player() {}
 
-bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context, const std::string& basePath) {
+bool Player::Load(
+    ID3D11Device* device, 
+    ID3D11DeviceContext* context, 
+    const std::string& basePath,
+    ID3D11InputLayout* inputLayout,
+    ID3D11VertexShader* vertexShader,
+    ID3D11PixelShader* pixelShader
+) {
     m_meshes.clear();
     m_materials.clear();
 
@@ -91,29 +99,46 @@ bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context, const std:
         uint32_t materialIndex = meshNode["materialIndex"];
         std::string meshFullPath = basePath + "/" + meshFileName;
 
-        std::ifstream meshFile(meshFullPath, std::ios::binary);
-        if (!meshFile.is_open()) {
-            MessageBoxW(nullptr, L"load mesh 失敗", L"Error", MB_OK);
-            return false;
+        if (meshFileName.find("mesh_1") != std::string::npos)
+        {
+            auto sword = std::make_unique<Sword>();
+            std::string offsetFilePath = basePath + "/sword_offset.json";
+
+            if (sword->Load(device, meshFullPath, offsetFilePath, inputLayout, vertexShader, pixelShader)) {
+                m_sword = std::move(sword);
+            }
+           else {
+                MessageBoxW(nullptr, L"Failed to load sword", L"Error", MB_OK);
+                return false;
+            }
+        }
+        else {
+            std::ifstream meshFile(meshFullPath, std::ios::binary);
+            if (!meshFile.is_open()) {
+                MessageBoxW(nullptr, L"load mesh 失敗", L"Error", MB_OK);
+                return false;
+            }
+
+            MeshHeader header;
+            meshFile.read(reinterpret_cast<char*>(&header), sizeof(MeshHeader));// 获取顶点和索引大小
+            std::vector<modelVertex> vertices(header.vertexCount);
+            meshFile.read(reinterpret_cast<char*>(vertices.data()), header.vertexCount * sizeof(modelVertex));
+            std::vector<uint32_t>indices(header.indexCount);
+            meshFile.read(reinterpret_cast<char*>(indices.data()), header.indexCount * sizeof(uint32_t));
+            meshFile.close();
+
+            Mesh newMesh;
+            newMesh.indexCount = header.indexCount;
+            newMesh.materialIndex = materialIndex;
+            newMesh.vertexBuffer = BufferUtils::CreateStaticVertexBuffer(device, vertices.data(), header.vertexCount * sizeof(modelVertex));
+            newMesh.indexBuffer = BufferUtils::CreateStaticIndexBuffer(device, indices.data(), header.indexCount * sizeof(uint32_t));
+
+            if (!newMesh.vertexBuffer || !newMesh.indexBuffer) return false;
+
+            m_meshes.push_back(std::move(newMesh));
         }
 
-        MeshHeader header;
-        meshFile.read(reinterpret_cast<char*>(&header), sizeof(MeshHeader));// 获取顶点和索引大小
-        std::vector<modelVertex> vertices(header.vertexCount);
-        meshFile.read(reinterpret_cast<char*>(vertices.data()), header.vertexCount * sizeof(modelVertex));
-        std::vector<uint32_t>indices(header.indexCount);
-        meshFile.read(reinterpret_cast<char*>(indices.data()), header.indexCount * sizeof(uint32_t));
-        meshFile.close();
 
-        Mesh newMesh;
-        newMesh.indexCount = header.indexCount;
-        newMesh.materialIndex = materialIndex;
-        newMesh.vertexBuffer = BufferUtils::CreateStaticVertexBuffer(device, vertices.data(), header.vertexCount * sizeof(modelVertex));
-        newMesh.indexBuffer = BufferUtils::CreateStaticIndexBuffer(device, indices.data(), header.indexCount * sizeof(uint32_t));
-
-        if (!newMesh.vertexBuffer || !newMesh.indexBuffer) return false;
-
-        m_meshes.push_back(std::move(newMesh));
     }
 
     // load skeleton
@@ -200,6 +225,8 @@ bool Player::Load(ID3D11Device* device, ID3D11DeviceContext* context, const std:
     }
 
 
+    PlayAnimation("Run");
+
     return true;
 }
 
@@ -226,6 +253,43 @@ void Player::Render(ID3D11DeviceContext* context, const DirectX::XMMATRIX& view,
 
         context->DrawIndexed(mesh.indexCount, 0, 0);
     }
+
+    if (m_sword && !m_globalTransforms.empty()) {
+        DirectX::XMMATRIX scaleMat = DirectX::XMMatrixScalingFromVector(XMLoadFloat3(&m_scale));
+        DirectX::XMMATRIX rotMat = DirectX::XMMatrixRotationRollPitchYawFromVector(XMLoadFloat3(&m_rotation));
+        DirectX::XMMATRIX transMat = DirectX::XMMatrixTranslationFromVector(XMLoadFloat3(&m_position));
+        DirectX::XMMATRIX playerWorldMatrix = scaleMat * rotMat * transMat;
+
+        DirectX::XMFLOAT4X4 storedHandMatrix = m_globalTransforms[42];
+        DirectX::XMMATRIX handModelMatrix = DirectX::XMLoadFloat4x4(&storedHandMatrix);
+        
+        DirectX::XMVECTOR S_h, R_h, T_h;
+        DirectX::XMMatrixDecompose(&S_h, &R_h, &T_h, handModelMatrix);
+        DirectX::XMMATRIX handNoScale =
+            DirectX::XMMatrixAffineTransformation(
+                DirectX::XMVectorSet(1.f, 1.f, 1.f, 0.f), // 统一缩放=1
+                DirectX::XMVectorZero(),
+                R_h, T_h);
+
+        // offset 也去缩放（保险起见）
+        DirectX::XMMATRIX offM = m_sword->GetOffsetMatrix();
+        DirectX::XMVECTOR S_o, R_o, T_o;
+        DirectX::XMMatrixDecompose(&S_o, &R_o, &T_o, offM);
+        DirectX::XMMATRIX offNoScale =
+            DirectX::XMMatrixAffineTransformation(
+                DirectX::XMVectorSet(1.f, 1.f, 1.f, 0.f),
+                DirectX::XMVectorZero(),
+                R_o, T_o);
+
+        // 最终
+        DirectX::XMMATRIX finalSwordMatrix = offNoScale * handNoScale * playerWorldMatrix;
+        //DirectX::XMMATRIX finalSwordMatrix = m_sword->GetOffsetMatrix() * handModelMatrix * playerWorldMatrix;
+    
+        m_sword->Render(context, finalSwordMatrix, view, projection, tintColor);
+    }
+    
+
+    
 }
 void Player::UpdateConstantBuffer(ID3D11DeviceContext* context,
     const DirectX::XMMATRIX& view,
@@ -444,7 +508,9 @@ void Player::UpdateAnimation(float deltaTime)
             T = DirectX::XMVectorLerp(DirectX::XMLoadFloat3(&key0.translation), DirectX::XMLoadFloat3(&key1.translation), factor);// (1.0 - t) * V0 + t * V1
             R = DirectX::XMQuaternionSlerp(DirectX::XMLoadFloat4(&key0.rotationQuaternion), DirectX::XMLoadFloat4(&key1.rotationQuaternion), factor);
             S = DirectX::XMVectorLerp(DirectX::XMLoadFloat3(&key0.scale), DirectX::XMLoadFloat3(&key1.scale), factor);
+            
         }
+
         R = DirectX::XMQuaternionNormalize(R);// 消除浮点数累积误差
         DirectX::XMMATRIX localTransform = DirectX::XMMatrixScalingFromVector(S) *
             DirectX::XMMatrixRotationQuaternion(R) *
@@ -467,6 +533,13 @@ void Player::UpdateAnimation(float deltaTime)
         }
     }
 
+    m_globalTransforms.resize(globalTransforms.size());
+    for (size_t i = 0; i < globalTransforms.size(); ++i)
+    {
+        DirectX::XMStoreFloat4x4(&m_globalTransforms[i], globalTransforms[i]);
+    }
+
+
     // 发送给GPU的矩阵
     m_finalBoneMatrices.resize(m_skeleton.bones.size());
     for (int i = 0; i < m_skeleton.bones.size(); ++i)
@@ -475,3 +548,6 @@ void Player::UpdateAnimation(float deltaTime)
         DirectX::XMStoreFloat4x4(&m_finalBoneMatrices[i], offset * globalTransforms[i]);
     }
 }
+
+
+

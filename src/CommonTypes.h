@@ -19,7 +19,12 @@ struct modelVertex
     int   boneIDs[4];
     float weights[4];
 };
-
+struct SwordVertex {
+    DirectX::XMFLOAT3 position;
+    DirectX::XMFLOAT2 texcoord;
+    DirectX::XMFLOAT3 normal;
+    DirectX::XMFLOAT3 tangent;
+};
 struct Vertex
 {
     DirectX::XMFLOAT3 position;

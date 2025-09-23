@@ -391,6 +391,70 @@ bool GraphicsApp::Initialize(HWND hwnd) {
 
 
 
+    Microsoft::WRL::ComPtr<ID3DBlob> staticMeshVSBlob, staticMeshPSBlob, staticMeshErrorBlob;
+    hr = D3DCompileFromFile(
+        L"shaders/staticMesh.hlsl",    // HLSL 源文件路径
+        nullptr, nullptr,          // 宏定义、包含处理器
+        "VSMain", "vs_5_0",        // 函数入口 = VSMain，目标 profile = vs_5_0
+        D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG, // 严格检查 + Debug 信息
+        0,
+        &staticMeshVSBlob,                   // 输出：编译好的字节码
+        &staticMeshErrorBlob                 // 输出：错误信息
+    );
+
+    if (FAILED(hr)) {
+        return false;
+    }
+    hr = D3DCompileFromFile(
+        L"shaders/staticMesh.hlsl",
+        nullptr,
+        nullptr,
+        "PSMain", "ps_5_0",// 函数入口 = PSMain，目标 profile = ps_5_0
+        D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG,
+        0,
+        &staticMeshPSBlob,
+        &staticMeshErrorBlob
+    );
+
+    if (FAILED(hr)) {
+        return false;
+    }
+
+
+    hr = m_device->CreateVertexShader(// 创建顶点着色器对象
+        staticMeshVSBlob->GetBufferPointer(),
+        staticMeshVSBlob->GetBufferSize(),
+        nullptr,
+        m_staticMeshVS.GetAddressOf()
+    );
+    if (FAILED(hr)) {
+        return false;
+    }
+    hr = m_device->CreatePixelShader(// 创建像素着色器对象
+        staticMeshPSBlob->GetBufferPointer(),
+        staticMeshPSBlob->GetBufferSize(),
+        nullptr,
+        m_staticMeshPS.GetAddressOf()
+    );
+    if (FAILED(hr)) {
+        return false;
+    }
+    D3D11_INPUT_ELEMENT_DESC staticMeshLayout[] = {
+    { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    { "TANGENT",  0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+    };
+    hr = m_device->CreateInputLayout(
+        staticMeshLayout,
+        ARRAYSIZE(staticMeshLayout),
+        staticMeshVSBlob->GetBufferPointer(),
+        staticMeshVSBlob->GetBufferSize(),
+        m_staticMeshInputLayout.GetAddressOf()
+    );
+    if (FAILED(hr)) return false;
+
+
     D3D11_SAMPLER_DESC sampDesc = {};
     sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;//双线性插值，更柔和但会糊
     sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;//平铺重复时用 WRAP
@@ -589,7 +653,7 @@ bool GraphicsApp::Initialize(HWND hwnd) {
 
     m_player = std::make_unique<Player>();
     std::string modelSrc = "assets/model";
-    m_player->Load(m_device.Get(), m_context.Get(), modelSrc);
+    m_player->Load(m_device.Get(), m_context.Get(), modelSrc, m_staticMeshInputLayout.Get(), m_staticMeshVS.Get(), m_staticMeshPS.Get());
 
 
     return true;

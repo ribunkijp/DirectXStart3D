@@ -16,6 +16,8 @@
 #include <vector>
 #include <string>
 
+class Sword;
+
 struct Mesh
 {
 	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
@@ -73,7 +75,10 @@ public:
 	bool Load(
 		ID3D11Device* device,
 		ID3D11DeviceContext* context,
-		const std::string& basePath
+		const std::string& basePath,
+		ID3D11InputLayout* inputLayout,
+		ID3D11VertexShader* vertexShader,
+		ID3D11PixelShader* pixelShader
 	);
 	void Render(ID3D11DeviceContext* context, const DirectX::XMMATRIX& view,
 		const DirectX::XMMATRIX& projection, const DirectX::XMFLOAT4& tintColor);
@@ -87,6 +92,7 @@ public:
 	DirectX::XMFLOAT3 GetTargetVelocity() const;
 
 	void PlayAnimation(const std::string& clipName);
+
 
 
 private:
@@ -117,6 +123,10 @@ private:
 
 	DirectX::XMFLOAT3 m_velocity = { 0.0f, 0.0f, 0.0f };
 	DirectX::XMFLOAT3 m_targetVelocity = { 0.0f, 0.0f, 0.0f };
+
+	std::unique_ptr<Sword> m_sword;
+
+	std::vector<DirectX::XMFLOAT4X4> m_globalTransforms;
 
 };
 

@@ -568,7 +568,7 @@ void Player::UpdateAnimation(float deltaTime)
                 if (deltaTimeKeys < 0.0f) deltaTimeKeys += prevClip.duration;
                 float factor = 0.0f;
                 if (deltaTimeKeys > 1e-6f) {
-                    float progress = m_animationTime - key0.timeStamp;
+                    float progress = m_previousAnimationTime - key0.timeStamp;
                     if (progress < 0.0f) progress += prevClip.duration;
                     factor = progress / deltaTimeKeys;
                 }

@@ -18,6 +18,11 @@
 
 class Sword;
 
+enum class PlayerState {
+	Idle,
+	Run
+};
+
 struct Mesh
 {
 	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
@@ -91,7 +96,7 @@ public:
 	DirectX::XMFLOAT3 GetVelocity() const;
 	DirectX::XMFLOAT3 GetTargetVelocity() const;
 
-	void PlayAnimation(const std::string& clipName);
+	void SetState(PlayerState newState);
 
 
 
@@ -128,6 +133,12 @@ private:
 
 	std::vector<DirectX::XMFLOAT4X4> m_globalTransforms;
 
+	PlayerState m_currentState = PlayerState::Run;
+
+	int m_previousAnimationClipIndex = -1;
+	float m_previousAnimationTime = 0.0f;
+	float m_blendFactor = 1.0f;
+	float m_blendDuration = 0.25f;
 };
 
 

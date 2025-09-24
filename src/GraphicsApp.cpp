@@ -1038,7 +1038,10 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
             DirectX::XMVECTOR velocity = DirectX::XMVectorScale(moveDirNormalized, playerSpeed);
             DirectX::XMStoreFloat3(&targetVelocity, velocity);
 
-            m_player->PlayAnimation("Run");
+            m_player->SetState(PlayerState::Run);
+        }
+        else {
+            m_player->SetState(PlayerState::Idle);
         }
         m_player->SetTargetVelocity(targetVelocity);
         m_player->Update(deltaTime);

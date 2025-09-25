@@ -7,7 +7,8 @@
  * LI WENHUI
  * 2025/09/23
  **********************************************************************************/
-#pragma pack_matrix(row_major)
+
+#pragma pack_matrix(column_major)
 // 常量缓冲（b0）
 cbuffer PerObjectCB : register(b0)
 {
@@ -52,13 +53,13 @@ PS_INPUT VSMain(VS_INPUT input)
 
     // 计算裁剪空间位置
     float4 localPos = float4(input.position, 1.0f); //扩展成float4齐次坐标
-    float4x4 worldViewProj = mul(mul(world, view), projection); //世界、观察、投影三个矩阵预乘，得到WVP复合矩阵
-    output.position = mul(localPos, worldViewProj);
+    float4x4 worldViewProj = mul(projection, mul(view, world)); //世界、观察、投影三个矩阵预乘，得到WVP复合矩阵
+    output.position = mul(worldViewProj, localPos);
 
     // 用 worldIT 的上3x3来变换法线/切线（支持非均匀缩放/镜像）
     float3x3 normalMat = (float3x3) worldIT;
-    output.worldNormal = normalize(mul(input.normal, normalMat));
-    output.worldTangent = normalize(mul(input.tangent, normalMat));
+    output.worldNormal = normalize(mul(normalMat, normalize(input.normal)));
+    output.worldTangent = normalize(mul(normalMat, normalize(input.tangent)));
 
     output.texCoord = input.texCoord;
 

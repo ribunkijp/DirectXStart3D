@@ -92,10 +92,9 @@ void Ground::UpdateConstantBuffer(ID3D11DeviceContext* context,
     if (SUCCEEDED(context->Map(m_constantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource)))
     {
         auto* cb = reinterpret_cast<PerObjectCB*>(mappedResource.pData);
-
-        DirectX::XMStoreFloat4x4(&cb->world, DirectX::XMMatrixTranspose(worldMatrix));
-        DirectX::XMStoreFloat4x4(&cb->view, DirectX::XMMatrixTranspose(view));
-        DirectX::XMStoreFloat4x4(&cb->projection, DirectX::XMMatrixTranspose(projection));
+        DirectX::XMStoreFloat4x4(&cb->world, worldMatrix);
+        DirectX::XMStoreFloat4x4(&cb->view, view);
+        DirectX::XMStoreFloat4x4(&cb->projection, projection);
         DirectX::XMStoreFloat4x4(&cb->worldIT, worldIT);
         cb->tintColor = tintColor;
 

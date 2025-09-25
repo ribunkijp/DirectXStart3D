@@ -8,7 +8,7 @@
  * 2025/09/19
  **********************************************************************************/
 
-#pragma pack_matrix(column_major)
+#pragma pack_matrix(row_major)
 // 常量缓冲（b0）
 cbuffer PerObjectCB : register(b0)
 {
@@ -75,9 +75,9 @@ PS_INPUT VSMain(VS_INPUT input)
             float4x4 boneTransform = gBoneTransforms[input.boneIDs[i]];
             float weight = input.weights[i];
             
-            finalPos += mul(boneTransform, localPos) * weight;
-            finalNormal += mul((float3x3) boneTransform, localNormal) * weight;
-            finalTangent += mul((float3x3) boneTransform, localTangent) * weight;
+            finalPos += mul(localPos, (float4x4) boneTransform) * weight;
+            finalNormal += mul(localNormal, (float3x3) boneTransform) * weight;
+            finalTangent += mul(localTangent, (float3x3) boneTransform) * weight;
             
             totalWeight += weight;
         }
@@ -91,13 +91,13 @@ PS_INPUT VSMain(VS_INPUT input)
     
    
     
-    float4x4 worldViewProj = mul(projection, mul(view, world)); //世界、观察、投影三个矩阵预乘，得到WVP复合矩阵
-    output.position = mul(worldViewProj, finalPos);
+    float4x4 worldViewProj = mul(world, mul(view, projection)); //世界、观察、投影三个矩阵预乘，得到WVP复合矩阵
+    output.position = mul(finalPos, worldViewProj);
 
     // 用 worldIT 的上3x3来变换法线/切线（支持非均匀缩放/镜像）
     float3x3 normalMat = (float3x3) worldIT;
-    output.worldNormal = normalize(mul(normalMat, normalize(finalNormal)));
-    output.worldTangent = normalize(mul(normalMat, normalize(finalTangent)));
+    output.worldNormal = normalize(mul(normalize(finalNormal), normalMat));
+    output.worldTangent = normalize(mul(normalize(finalTangent), normalMat));
 
     output.texCoord = input.texCoord;
 

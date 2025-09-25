@@ -8,7 +8,7 @@
  * 2025/09/10
  **********************************************************************************/
 
-#pragma pack_matrix(column_major)
+#pragma pack_matrix(row_major)
 // 常量缓冲（b0）
 cbuffer PerObjectCB : register(b0)
 {
@@ -55,13 +55,13 @@ PS_INPUT VSMain(VS_INPUT input)
 
     // 计算裁剪空间位置
     float4 localPos = float4(input.position, 1.0f);//扩展成float4齐次坐标
-    float4x4 worldViewProj = mul(projection, mul(view, world)); // P*V*W
-    output.position = mul(worldViewProj, localPos); // 左乘
+    float4x4 worldViewProj = mul(world, mul(view, projection)); // 
+    output.position = mul(localPos, worldViewProj);
 
     // 用 worldIT 的上3x3来变换法线/切线（支持非均匀缩放/镜像）
     float3x3 normalMat = (float3x3) worldIT; // CPU 端提供 (W^-1)^T
-    output.worldNormal = normalize(mul(normalMat, normalize(input.normal)));
-    output.worldTangent = normalize(mul(normalMat, normalize(input.tangent)));
+    output.worldNormal = normalize(mul(normalize(input.normal), normalMat));
+    output.worldTangent = normalize(mul(normalize(input.tangent), normalMat));
 
     output.color = input.color;
     output.texCoord = input.texCoord;

@@ -63,6 +63,7 @@ struct AnimationClip // 完整动画
 	std::string name;
 	float duration;
 	float ticksPerSecond;
+	bool isLooping = true;
 	std::vector<BoneAnimation> channels;
 };
 
@@ -99,6 +100,8 @@ public:
 	DirectX::XMFLOAT3 GetTargetVelocity() const;
 
 	void SetState(PlayerState newState);
+
+	PlayerState GetCurrentState() const;
 
 
 
@@ -141,12 +144,10 @@ private:
 	float m_previousAnimationTime = 0.0f;
 	float m_blendFactor = 1.0f;
 	float m_blendDuration = 0.25f;
+
+
+
 };
-
-
-
-
-
 
 
 #endif

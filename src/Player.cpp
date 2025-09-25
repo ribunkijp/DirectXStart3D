@@ -191,6 +191,13 @@ bool Player::Load(
         newClip.duration = animJson["duration"];
         newClip.ticksPerSecond = animJson["ticksPerSecond"];
 
+        if (newClip.name == "Attack0" || newClip.name == "Jump") {
+            newClip.isLooping = false;
+        }
+        else {
+            newClip.isLooping = true;
+        }
+
         for (const auto& channelNode : animJson["channels"])
         {
             BoneAnimation newChannel;
@@ -476,8 +483,17 @@ void Player::UpdateAnimation(float deltaTime)
     const auto& clip = m_animations[m_currentAnimationClipIndex];
 
     m_animationTime += clip.ticksPerSecond * deltaTime;
-    if (m_animationTime > clip.duration) {
-        m_animationTime = fmod(m_animationTime, clip.duration);
+    
+    if (!clip.isLooping) {
+        if (m_animationTime > clip.duration) {
+            m_animationTime = clip.duration;
+            SetState(PlayerState::Idle);
+        }
+    }
+    else {
+        if (m_animationTime > clip.duration) {
+            m_animationTime = fmod(m_animationTime, clip.duration);
+        }
     }
     std::vector<DirectX::XMMATRIX>  currentLocalTransforms(m_skeleton.bones.size());
     for (size_t i = 0; i < m_skeleton.bones.size(); ++i) {
@@ -646,12 +662,15 @@ void Player::SetState(PlayerState newState) {
     m_currentState = newState;
 
     switch (newState) {
-    case PlayerState::Idle:
-        targetClipName = "Idle";
-        break;
-    case PlayerState::Run:
-        targetClipName = "Run";
-        break;
+        case PlayerState::Idle:
+            targetClipName = "Idle";
+            break;
+        case PlayerState::Run:
+            targetClipName = "Run";
+            break;
+        case PlayerState::Attack0:
+            targetClipName = "Attack0";
+            break;
     }
 
     for (int i = 0; i < m_animations.size(); ++i)
@@ -667,3 +686,6 @@ void Player::SetState(PlayerState newState) {
 }
 
 
+PlayerState Player::GetCurrentState() const {
+    return m_currentState;
+}

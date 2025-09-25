@@ -20,7 +20,9 @@ class Sword;
 
 enum class PlayerState {
 	Idle,
-	Run
+	Run,
+	Walk,
+	Attack0
 };
 
 struct Mesh

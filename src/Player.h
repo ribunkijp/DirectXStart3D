@@ -22,7 +22,9 @@ enum class PlayerState {
 	Idle,
 	Run,
 	Walk,
-	Attack0
+	Jump,
+	Attack0,
+	AttackRo
 };
 
 struct Mesh

@@ -977,12 +977,18 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
 
     if (m_player && m_inputController && m_camera) {
 
-        bool attack0 = m_inputController->IsKeyPressed(VK_LBUTTON);
+        bool mouseL = m_inputController->IsKeyPressed(VK_LBUTTON);
+        bool e = m_inputController->IsKeyPressed('E');
 
-        if (attack0 && m_player->GetCurrentState() != PlayerState::Attack0) {
+        bool isAttacking = m_player->GetCurrentState() == PlayerState::Attack0 || m_player->GetCurrentState() == PlayerState::AttackRo;
+
+        if (e && mouseL && !isAttacking) {
+            m_player->SetState(PlayerState::AttackRo);
+        }
+        else if (mouseL && !isAttacking) {
             m_player->SetState(PlayerState::Attack0);
         }
-        if (m_player->GetCurrentState() != PlayerState::Attack0) {
+        else if (!isAttacking) {
             bool w = m_inputController->IsKeyPressed('W');
             bool a = m_inputController->IsKeyPressed('A');
             bool s = m_inputController->IsKeyPressed('S');

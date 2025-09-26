@@ -191,7 +191,7 @@ bool Player::Load(
         newClip.duration = animJson["duration"];
         newClip.ticksPerSecond = animJson["ticksPerSecond"];
 
-        if (newClip.name == "Attack0" || newClip.name == "Jump") {
+        if (newClip.name == "Attack0" || newClip.name == "Jump" || newClip.name == "AttackRo") {
             newClip.isLooping = false;
         }
         else {
@@ -670,6 +670,9 @@ void Player::SetState(PlayerState newState) {
             break;
         case PlayerState::Attack0:
             targetClipName = "Attack0";
+            break;
+        case PlayerState::AttackRo:
+            targetClipName = "AttackRo";
             break;
     }
 

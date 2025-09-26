@@ -105,6 +105,8 @@ public:
 
 	PlayerState GetCurrentState() const;
 
+	bool IsAnimationFinished() const;
+	void ResetAnimationFinishedFlag();
 
 
 private:
@@ -147,9 +149,10 @@ private:
 	float m_blendFactor = 1.0f;
 	float m_blendDuration = 0.25f;
 
+	bool m_isCurrentAnimationFinished = false;
 
 
-};
+ };
 
 
 #endif

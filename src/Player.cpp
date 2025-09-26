@@ -486,8 +486,8 @@ void Player::UpdateAnimation(float deltaTime)
     
     if (!clip.isLooping) {
         if (m_animationTime > clip.duration) {
-            m_animationTime = clip.duration;
-            SetState(PlayerState::Idle);
+            m_animationTime = clip.duration;  
+            m_isCurrentAnimationFinished = true;
         }
     }
     else {
@@ -691,4 +691,11 @@ void Player::SetState(PlayerState newState) {
 
 PlayerState Player::GetCurrentState() const {
     return m_currentState;
+}
+
+bool Player::IsAnimationFinished() const {
+    return m_isCurrentAnimationFinished;
+}
+void Player::ResetAnimationFinishedFlag() {
+    m_isCurrentAnimationFinished = false;
 }

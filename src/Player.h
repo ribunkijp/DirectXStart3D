@@ -22,9 +22,11 @@ enum class PlayerState {
 	Idle,
 	Run,
 	Walk,
-	Jump,
 	Attack0,
-	AttackRo
+	AttackRo,
+	JumpStart,
+	JumpAir,
+	JumpFall
 };
 
 struct Mesh
@@ -108,6 +110,8 @@ public:
 	bool IsAnimationFinished() const;
 	void ResetAnimationFinishedFlag();
 
+	bool IsGrounded() const;
+	void ApplyGravity(float deltaTime);
 
 private:
 	void UpdateConstantBuffer(ID3D11DeviceContext* context,
@@ -116,6 +120,7 @@ private:
 		const DirectX::XMFLOAT4& tintColor);
 	void UpdateAnimation(float deltaTime);
 	int FindKeyframeIndexBefore(float animationTime, const std::vector<Keyframe>& keyframes);
+	
 
 private:
 	std::vector<Mesh> m_meshes;
@@ -151,6 +156,10 @@ private:
 
 	bool m_isCurrentAnimationFinished = false;
 
+	bool m_isGrounded = false;
+	float m_gravity = -18.0f;
+	float m_jumpForce = 7.0f;
+	float m_verticalVelocity = 0.0f;// y
 
  };
 

@@ -191,7 +191,9 @@ bool Player::Load(
         newClip.duration = animJson["duration"];
         newClip.ticksPerSecond = animJson["ticksPerSecond"];
 
-        if (newClip.name == "Attack0" || newClip.name == "Jump" || newClip.name == "AttackRo") {
+        if (newClip.name == "Attack0" || newClip.name == "Jump" || 
+            newClip.name == "AttackRo" || newClip.name == "JumpStart") 
+        {
             newClip.isLooping = false;
         }
         else {
@@ -401,13 +403,43 @@ void Player::Update(float deltaTime)
     {
         currentVel = DirectX::XMVectorZero();// 清零
     }
-
     DirectX::XMStoreFloat3(&m_velocity, currentVel);
+
+    ApplyGravity(deltaTime);
+
+    DirectX::XMVECTOR horizontalMove = DirectX::XMVectorScale(currentVel, deltaTime);
+    DirectX::XMVECTOR verticalMove = DirectX::XMVectorSet(0.0f, m_verticalVelocity * deltaTime, 0.0f, 0.0f);
     
     DirectX::XMVECTOR posVec = DirectX::XMLoadFloat3(&m_position);
-    posVec = DirectX::XMVectorAdd(posVec, DirectX::XMVectorScale(currentVel, deltaTime));
+    posVec = DirectX::XMVectorAdd(posVec, horizontalMove);
+    posVec = DirectX::XMVectorAdd(posVec, verticalMove);
     DirectX::XMStoreFloat3(&m_position, posVec);
 
+    if (m_position.y < 0.0f) {
+        m_position.y = 0.0f;
+        m_verticalVelocity = 0.0f;
+        m_isGrounded = true;
+    }
+
+    if (!m_isGrounded)
+    {
+        if (m_currentState == PlayerState::JumpStart && IsAnimationFinished())
+        {
+            if (m_verticalVelocity > 0) {
+                SetState(PlayerState::JumpAir);
+            }
+            else {
+                SetState(PlayerState::JumpFall);
+            }
+        }
+        else if (m_currentState == PlayerState::JumpAir)
+        {
+            if (m_verticalVelocity <= 0)
+            {
+                SetState(PlayerState::JumpFall);
+            }
+        }
+    }
 
     UpdateAnimation(deltaTime);
 }
@@ -674,6 +706,15 @@ void Player::SetState(PlayerState newState) {
         case PlayerState::AttackRo:
             targetClipName = "AttackRo";
             break;
+        case PlayerState::JumpStart:
+            targetClipName = "JumpStart";
+            break;
+        case PlayerState::JumpAir:
+            targetClipName = "JumpAir";
+            break;
+        case PlayerState::JumpFall:
+            targetClipName = "JumpFall";
+            break;
     }
 
     for (int i = 0; i < m_animations.size(); ++i)
@@ -698,4 +739,14 @@ bool Player::IsAnimationFinished() const {
 }
 void Player::ResetAnimationFinishedFlag() {
     m_isCurrentAnimationFinished = false;
+}
+
+bool Player::IsGrounded() const {
+    return m_isGrounded;
+}
+
+void Player::ApplyGravity(float deltaTime) {
+    if (!m_isGrounded) {
+        m_verticalVelocity += m_gravity * deltaTime;
+    }
 }

@@ -982,6 +982,7 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
         bool d = m_inputController->IsKeyPressed('D');
         bool mouseL = m_inputController->IsKeyPressed(VK_LBUTTON);
         bool e = m_inputController->IsKeyPressed('E');
+        bool space = m_inputController->IsKeyPressed(VK_SPACE);
 
         bool wasDiagonalLastFrame = (m_w_pressed_lastFrame && (m_a_pressed_lastFrame || m_d_pressed_lastFrame)) ||
             (m_s_pressed_lastFrame && (m_a_pressed_lastFrame || m_d_pressed_lastFrame));
@@ -1024,37 +1025,44 @@ void GraphicsApp::ProcessInputAndUpdateWorld(float deltaTime)
 
         PlayerState currentState = m_player->GetCurrentState();
         bool isAttacking =  currentState == PlayerState::Attack0 || currentState == PlayerState::AttackRo;
+        bool isGrounded = m_player->IsGrounded();
 
-        if (m_player->IsAnimationFinished()) {
-            m_player->ResetAnimationFinishedFlag();
-           if (mouseL) {
+        if (!isGrounded)
+        {
+            
+        }
+        else
+        {
+            if (space)
+            {
+                m_player->SetState(PlayerState::JumpStart);
+            }
+            else if (mouseL && !isAttacking)
+            {
                 m_player->SetState(e ? PlayerState::AttackRo : PlayerState::Attack0);
-            } 
-           else if (isMoving) {
-                m_player->SetState(PlayerState::Run);
             }
-            else {
+            else if (!isAttacking)
+            {
+                if (isMoving)
+                {
+                    m_player->SetState(PlayerState::Run);
+                }
+                else
+                {
+                    m_player->SetState(PlayerState::Idle);
+                }
+            }
+            else if (isAttacking && m_player->IsAnimationFinished())
+            {
+                m_player->ResetAnimationFinishedFlag();
                 m_player->SetState(PlayerState::Idle);
             }
         }
-        else if (e && mouseL && !isAttacking) {
-            m_player->SetState(PlayerState::AttackRo);
-        }
-        else if (mouseL && !isAttacking) {
-            m_player->SetState(PlayerState::Attack0);
-        }
-        else if (!isAttacking) {
-            if (isMoving) {
-                m_player->SetState(PlayerState::Run);
-            }
-            else {
-                m_player->SetState(PlayerState::Idle);
-            }
-        }
+
            
         currentState = m_player->GetCurrentState();
         DirectX::XMFLOAT3 targetVelocity = { 0.0f, 0.0f, 0.0f };
-        if (currentState == PlayerState::Run) {
+        if (isMoving) {
             float currentYaw = m_player->GetRotation().y;
             float targetYaw = atan2f(DirectX::XMVectorGetX(finalMoveDirection), DirectX::XMVectorGetZ(finalMoveDirection));// 根据相机朝向和玩家按键计算目标角度
             float angleDiff = targetYaw - currentYaw;
